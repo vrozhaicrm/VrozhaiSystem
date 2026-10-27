@@ -13,18 +13,51 @@
         th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
         nav { margin-bottom: 20px; }
         nav button { background: #f0f0f0; border: 1px solid #ccc; font-size: 16px; }
+
+        /* Стилі вікна авторизації */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #f4f6f9; display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .login-box {
+            background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 300px; text-align: center;
+        }
+        .login-box input {
+            width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;
+        }
+        .login-box button {
+            width: 100%; padding: 10px; background: #1976d2; color: white; border: none; border-radius: 4px; font-size: 16px;
+        }
+        .logout-btn { margin-left: auto; background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
+        
     </style>
 </head>
 <body>
 
-    <h1 class="main-title">Врожай</h1>
+    <!-- ВІКНО ЛОГІНА -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2 style="color: #1976d2; margin-top: 0;">Врожай CRM</h2>
+            <p style="color: #666; font-size: 14px;">Введіть дані для входу</p>
+            <input type="text" id="login-user" placeholder="Логін">
+            <input type="password" id="login-pass" placeholder="Пароль">
+            <button id="login-btn" onclick="performLogin()">Увійти</button>
+            <p id="login-error" style="color: red; font-size: 13px; display: none;"></p>
+        </div>
+    </div>
 
-    <nav>
-        <button onclick="showTab('stock')">Склад</button>
-        <button onclick="showTab('supply')">Завіз</button>
-        <button onclick="showTab('sales')">Продажі</button>
-        <button onclick="showTab('accounting')">Бухгалтерія</button>
-    </nav>
+    <!-- ГОЛОВНИЙ ІНТЕРФЕЙС CRM (прихований до входу) -->
+    <div id="app-content" style="display: none;">
+        <h1 class="main-title">Врожай</h1>
+
+        <nav>
+            <button onclick="showTab('stock')">Склад</button>
+            <button onclick="showTab('supply')">Завіз</button>
+            <button onclick="showTab('sales')">Продажі</button>
+            <button onclick="showTab('accounting')">Бухгалтерія</button>
+            <button class="logout-btn" onclick="logout()">Вийти</button>
+        </nav>
 
     <!-- СКЛАД -->
     <div id="stock" class="tab active">
@@ -95,9 +128,60 @@
             <tbody id="accounting-list"></tbody>
         </table>
     </div>
+        </div>
 
     <script>
         const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbw-PgmkI5M3MvzBK2Xl9JcD7vNBTS-eCUV1-9ykpBy5Wi4doDshV7vc_WCgKf51E_ZGSA/exec";
+        // ФУНКЦІЇ АВТОРИЗАЦІЇ
+        function checkAuth() {
+            if (sessionStorage.getItem('isAuth') === 'true') {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('app-content').style.display = 'block';
+                updateUI();
+            } else {
+                document.getElementById('login-overlay').style.display = 'flex';
+                document.getElementById('app-content').style.display = 'none';
+            }
+        }
+
+        function performLogin() {
+            let u = document.getElementById('login-user').value.trim();
+            let p = document.getElementById('login-pass').value.trim();
+            let err = document.getElementById('login-error');
+            let btn = document.getElementById('login-btn');
+
+            if (!u || !p) {
+                err.innerText = "Введіть логін та пароль!";
+                err.style.display = 'block';
+                return;
+            }
+
+            btn.innerText = "Перевірка...";
+            err.style.display = 'none';
+
+            fetch(`${GOOGLE_URL}?action=login&username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}`)
+                .then(res => res.json())
+                .then(data => {
+                    btn.innerText = "Увійти";
+                    if (data.success) {
+                        sessionStorage.setItem('isAuth', 'true');
+                        checkAuth();
+                    } else {
+                        err.innerText = data.message || "Невірний логін або пароль!";
+                        err.style.display = 'block';
+                    }
+                })
+                .catch(e => {
+                    btn.innerText = "Увійти";
+                    err.innerText = "Помилка зв'язку з базою!";
+                    err.style.display = 'block';
+                });
+        }
+
+        function logout() {
+            sessionStorage.removeItem('isAuth');
+            checkAuth();
+        }
 
         function sendToGoogle(payload) {
             fetch(GOOGLE_URL, {
@@ -409,7 +493,7 @@
             document.getElementById('total-profit').innerText = "0";
         }
 
-        updateUI();
+        checkAuth();
     </script>
 </body>
 </html>
