@@ -94,6 +94,16 @@
 </div>
 
     <script>
+    const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbw-PgmkI5M3MvzBK2Xl9JcD7vNBTS-eCUV1-9ykpBy5Wi4doDshV7vc_WCgKf51E_ZGSA/exec";
+
+        function sendToGoogle(payload) {
+            fetch(GOOGLE_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+        }
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
         let history = JSON.parse(localStorage.getItem('history')) || [];
         let supplies = JSON.parse(localStorage.getItem('supplies')) || [];
@@ -174,7 +184,10 @@ if (!item.includes(searchStock)) continue;
             inventory[item].kg += qty;
             inventory[item].buyPrice = price;
 
-            supplies.push({ date: new Date().toLocaleString(), item, qty, price });
+            let date = new Date().toLocaleString();
+            supplies.push({ date: date, item, qty, price });
+            sendToGoogle({ type: "supply", date: date, item: item, qty: qty, price: price, total: (qty * price).toFixed(2) });
+            sendToGoogle({ type: "sync_stock", inventory: inventory });
             document.getElementById('sup-item').value = "";
             document.getElementById('sup-qty').value = "";
             document.getElementById('sup-price').value = "";
@@ -193,6 +206,7 @@ if (!item.includes(searchStock)) continue;
     let totalSum = qty * pricePerKg; // Считаем общую сумму
     inventory[item].kg -= qty;
 
+    let date = new Date().toLocaleString();
     // ВАЖНО: используем именно эти имена полей
     history.push({ 
         item: item, 
@@ -201,6 +215,9 @@ if (!item.includes(searchStock)) continue;
         totalSum: totalSum, 
         date: new Date().toLocaleString() 
     });
+
+    sendToGoogle({ type: "sale", date: date, item: item, qty: qty, pricePerKg: pricePerKg, totalSum: totalSum.toFixed(2) });
+    sendToGoogle({ type: "sync_stock", inventory: inventory });
 
     document.getElementById('sell-qty').value = "";
     document.getElementById('sell-price').value = "";
