@@ -298,6 +298,37 @@ function updateFilterInput() {
     document.getElementById('total-expense').innerText = "0";
     document.getElementById('total-profit').innerText = "0";
 }
-    </script>
+</script>
+
+    <!-- Кнопка проверки связи с Google -->
+<div style="text-align: center; margin: 30px;">
+  <button id="testBtn" style="padding: 12px 20px; font-size: 16px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 5px;">
+    Проверить связь с Google Таблицей
+  </button>
+</div>
+
+<script>
+  document.getElementById('testBtn').addEventListener('click', function() {
+    const googleUrl = "https://script.google.com/macros/s/AKfycbw-PgmkI5M3MvzBK2Xl9JcD7vNBTS-eCUV1-9ykpBy5Wi4doDshV7vc_WCgKf51E_ZGSA/exec"; // <-- Вставь сюда ссылку /exec
+    
+    this.innerText = "Отправка...";
+    
+    fetch(googleUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "Тестовая запись из CRM на GitHub!" })
+    })
+    .then(() => {
+      alert("Данные отправлены! Проверь свою Google Таблицу.");
+      this.innerText = "Проверить связь с Google Таблицей";
+    })
+    .catch(err => {
+      alert("Ошибка отправки: " + err);
+      this.innerText = "Ошибка";
+    });
+  });
+</script>
+    
 </body>
 </html>
