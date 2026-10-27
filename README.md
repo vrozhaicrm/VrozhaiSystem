@@ -243,20 +243,27 @@ if (!item.includes(searchStock)) continue;
 }
 
         function deleteItem(item) {
-            if (confirm(`Удалить ${item}?`)) { delete inventory[item]; updateUI(); }
+            if (confirm(`Удалить ${item}?`)) { 
+                delete inventory[item]; 
+                sendToGoogle({ type: "sync_stock", inventory: inventory }); // сразу обновит таблицу
+                updateUI(); 
+            }
         }
 
         // УДАЛЕНИЕ И РЕДАКТИРОВАНИЕ ЗАВОЗА
         function deleteSupply(index) {
             let s = supplies[index];
             if (confirm(`Удалить завоз товара ${s.item.toUpperCase()} на ${s.qty} кг?`)) {
-                // Возвращаем остаток склада (списываем ошибочный завоз)
                 if (inventory[s.item]) {
                     inventory[s.item].kg -= s.qty;
                     if (inventory[s.item].kg < 0) inventory[s.item].kg = 0;
                 }
                 supplies.splice(index, 1);
+                
+                // ОТПРАВЛЯЕМ ОБНОВЛЕНИЯ В GOOGLE:
                 sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "sync_supplies", supplies: supplies }); // <-- обновляет лист "Завоз"
+                
                 updateUI();
             }
         }
@@ -267,17 +274,19 @@ if (!item.includes(searchStock)) continue;
             let newPrice = prompt(`Введите новую цену закупки (грн/кг):`, s.price);
 
             if (newQty !== null && newPrice !== null && !isNaN(newQty) && !isNaN(newPrice)) {
-                let diffKg = parseFloat(newQty) - s.qty; // разница в весе
+                let diffKg = parseFloat(newQty) - s.qty;
                 s.qty = parseFloat(newQty);
                 s.price = parseFloat(newPrice);
                 
-                // Корректируем склад на разницу
                 if (inventory[s.item]) {
                     inventory[s.item].kg += diffKg;
                     inventory[s.item].buyPrice = s.price;
                 }
                 
+                // ОТПРАВЛЯЕМ ОБНОВЛЕНИЯ В GOOGLE:
                 sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "sync_supplies", supplies: supplies }); // <-- обновляет лист "Завоз"
+                
                 updateUI();
             }
         }
@@ -286,12 +295,15 @@ if (!item.includes(searchStock)) continue;
         function deleteSale(index) {
             let h = history[index];
             if (confirm(`Удалить продажу товара ${h.item.toUpperCase()} на ${h.qty} кг?`)) {
-                // Возвращаем проданный товар обратно на склад
                 if (inventory[h.item]) {
                     inventory[h.item].kg += h.qty;
                 }
                 history.splice(index, 1);
+                
+                // ОТПРАВЛЯЕМ ОБНОВЛЕНИЯ В GOOGLE:
                 sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "sync_sales", history: history }); // <-- обновляет лист "Продажі"
+                
                 updateUI();
             }
         }
@@ -306,12 +318,10 @@ if (!item.includes(searchStock)) continue;
                 let parsedPrice = parseFloat(newPrice);
                 let diffKg = parsedQty - h.qty;
 
-                // Проверяем, хватит ли товара на складе, если увеличиваем продажу
                 if (diffKg > 0 && inventory[h.item].kg < diffKg) {
                     return alert("На складе недостаточно товара для увеличения продажи!");
                 }
 
-                // Корректируем склад
                 if (inventory[h.item]) {
                     inventory[h.item].kg -= diffKg;
                 }
@@ -320,30 +330,29 @@ if (!item.includes(searchStock)) continue;
                 h.pricePerKg = parsedPrice;
                 h.totalSum = parsedQty * parsedPrice;
 
+                // ОТПРАВЛЯЕМ ОБНОВЛЕНИЯ В GOOGLE:
                 sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "sync_sales", history: history }); // <-- обновляет лист "Продажі"
+                
                 updateUI();
             }
         }
 
 function editItem(item) {
-    // Получаем текущее значение кг (безопасно, даже если данные в другом формате)
-    let currentKg = (typeof inventory[item] === 'object') ? inventory[item].kg : inventory[item];
-    
-    let newQty = prompt(`Введите новое количество для ${item.toUpperCase()}:`, currentKg);
-    
-    if (newQty !== null && !isNaN(newQty)) {
-        let value = parseFloat(newQty);
-        
-        // Если это объект, обновляем поле kg, если число — перезаписываем
-        if (typeof inventory[item] === 'object') {
-            inventory[item].kg = value;
-        } else {
-            inventory[item] = { kg: value, buyPrice: 0 };
+            let currentKg = (typeof inventory[item] === 'object') ? inventory[item].kg : inventory[item];
+            let newQty = prompt(`Введите новое количество для ${item.toUpperCase()}:`, currentKg);
+            
+            if (newQty !== null && !isNaN(newQty)) {
+                let value = parseFloat(newQty);
+                if (typeof inventory[item] === 'object') {
+                    inventory[item].kg = value;
+                } else {
+                    inventory[item] = { kg: value, buyPrice: 0 };
+                }
+                sendToGoogle({ type: "sync_stock", inventory: inventory }); // сразу обновит таблицу
+                updateUI();
+            }
         }
-        
-        updateUI();
-    }
-}
 
         function filterAccounting() {
     let mode = document.getElementById('filter-mode').value;
