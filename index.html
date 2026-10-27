@@ -38,10 +38,15 @@
     <!-- ВІКНО ЛОГІНА -->
     <div id="login-overlay">
         <div class="login-box">
-            <h2 style="color: #1976d2; margin-top: 0;">Врожай CRM</h2>
+            <h2 style="color: #1976d2; margin-top: 0;">Врожай</h2>
             <p style="color: #666; font-size: 14px;">Введіть дані для входу</p>
             <input type="text" id="login-user" placeholder="Логін">
             <input type="password" id="login-pass" placeholder="Пароль">
+            
+            <label style="display: flex; align-items: center; justify-content: flex-start; margin: 10px 0; font-size: 14px; color: #555; cursor: pointer;">
+                <input type="checkbox" id="remember-me" style="width: auto; margin-right: 8px; cursor: pointer;"> Запам'ятати мене
+            </label>
+
             <button id="login-btn" onclick="performLogin()">Увійти</button>
             <p id="login-error" style="color: red; font-size: 13px; display: none;"></p>
         </div>
@@ -133,15 +138,18 @@
 
     <script>
         const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbw-PgmkI5M3MvzBK2Xl9JcD7vNBTS-eCUV1-9ykpBy5Wi4doDshV7vc_WCgKf51E_ZGSA/exec";
+        
         // ФУНКЦІЇ АВТОРИЗАЦІЇ
         function checkAuth() {
-            if (sessionStorage.getItem('isAuth') === 'true') {
+            // Перевіряємо вхід або в поточній вкладці, або в довготривалій пам'яті
+            let isAuth = sessionStorage.getItem('isAuth') === 'true' || localStorage.getItem('isAuth') === 'true';
+
+            if (isAuth) {
                 document.getElementById('login-overlay').style.display = 'none';
                 document.getElementById('app-content').style.display = 'block';
 
-                // Виводимо, хто увійшов і його статус
-                let role = sessionStorage.getItem('userRole') || 'seller';
-                let name = sessionStorage.getItem('userName') || '';
+                let role = sessionStorage.getItem('userRole') || localStorage.getItem('userRole') || 'seller';
+                let name = sessionStorage.getItem('userName') || localStorage.getItem('userName') || '';
                 let roleText = (role === 'admin') ? '👑 Адміністратор' : '🛒 Продавець';
                 
                 document.getElementById('user-badge').innerText = `👤 ${name} (${roleText})`;
@@ -150,12 +158,20 @@
             } else {
                 document.getElementById('login-overlay').style.display = 'flex';
                 document.getElementById('app-content').style.display = 'none';
+
+                // Якщо дані були збережені раніше — автоматично підставляємо їх у поля
+                if (localStorage.getItem('savedUser')) {
+                    document.getElementById('login-user').value = localStorage.getItem('savedUser');
+                    document.getElementById('login-pass').value = localStorage.getItem('savedPass');
+                    document.getElementById('remember-me').checked = true;
+                }
             }
         }
 
         function performLogin() {
             let u = document.getElementById('login-user').value.trim();
             let p = document.getElementById('login-pass').value.trim();
+            let remember = document.getElementById('remember-me').checked;
             let err = document.getElementById('login-error');
             let btn = document.getElementById('login-btn');
 
@@ -173,9 +189,27 @@
                 .then(data => {
                     btn.innerText = "Увійти";
                     if (data.success) {
+                        // Завжди зберігаємо в сесію
                         sessionStorage.setItem('isAuth', 'true');
-                        sessionStorage.setItem('userRole', data.role);      // Зберігаємо роль
-                        sessionStorage.setItem('userName', data.username);  // Зберігаємо логін
+                        sessionStorage.setItem('userRole', data.role);
+                        sessionStorage.setItem('userName', data.username);
+
+                        // Якщо стоїть галочка "Запам'ятати мене" — зберігаємо надовго
+                        if (remember) {
+                            localStorage.setItem('savedUser', u);
+                            localStorage.setItem('savedPass', p);
+                            localStorage.setItem('isAuth', 'true');
+                            localStorage.setItem('userRole', data.role);
+                            localStorage.setItem('userName', data.username);
+                        } else {
+                            // Якщо галочку зняли — очищаємо збережені паролі
+                            localStorage.removeItem('savedUser');
+                            localStorage.removeItem('savedPass');
+                            localStorage.removeItem('isAuth');
+                            localStorage.removeItem('userRole');
+                            localStorage.removeItem('userName');
+                        }
+
                         checkAuth();
                     } else {
                         err.innerText = data.message || "Невірний логін або пароль!";
@@ -193,6 +227,12 @@
             sessionStorage.removeItem('isAuth');
             sessionStorage.removeItem('userRole');
             sessionStorage.removeItem('userName');
+
+            // Скидаємо статус авторизації при ручному виході
+            localStorage.removeItem('isAuth');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userName');
+
             checkAuth();
         }
 
