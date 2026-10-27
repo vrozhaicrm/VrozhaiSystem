@@ -65,12 +65,24 @@
             <button class="logout-btn" onclick="logout()">Вийти</button>
         </nav>
 
-    <!-- СКЛАД -->
+     <!-- СКЛАД -->
     <div id="stock" class="tab active">
         <h2>Склад</h2>
+        <p style="font-size: 16px; margin-bottom: 10px;">
+            Орієнтовна каса складу (якщо все продати): <b><span id="total-stock-worth" style="color: #2e7d32;">0</span> грн</b>
+        </p>
         <input type="text" id="search-stock" placeholder="Пошук товару..." oninput="updateUI()">
         <table>
-            <thead><tr><th>Товар</th><th>Кількість (кг)</th><th>Дії</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Товар</th>
+                    <th>Залишок (кг)</th>
+                    <th>Ціна покупки</th>
+                    <th>Рек. ціна продажу</th>
+                    <th>Орієнтовна каса</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
             <tbody id="stock-list"></tbody>
         </table>
     </div>
@@ -80,12 +92,24 @@
         <h2>Завіз товару</h2>
         <input type="text" id="sup-item" placeholder="Назва товару">
         <input type="number" id="sup-qty" placeholder="Кг">
-        <input type="number" id="sup-price" placeholder="Ціна закупки (грн/кг)">
+        <input type="number" id="sup-price" placeholder="Ціна покупки (грн/кг)">
+        <input type="number" id="sup-sell-price" placeholder="Рек. ціна продажу (грн/кг)">
         <button onclick="addSupply()">Оприбуткувати</button>
+        
         <h3>Історія завозів:</h3>
         <input type="text" id="search-supply" placeholder="Пошук по завозах..." oninput="updateUI()">
         <table>
-            <thead><tr><th>Дата</th><th>Товар</th><th>К-сть</th><th>Ціна</th><th>Вартість</th><th>Дії</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Товар</th>
+                    <th>К-сть</th>
+                    <th>Ціна покупки</th>
+                    <th>Рек. ціна</th>
+                    <th>Загальна вартість закупки</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
             <tbody id="supply-list"></tbody>
         </table>
     </div>
@@ -267,15 +291,27 @@
             let select = document.getElementById('sell-item');
             select.innerHTML = '<option value="">-- Оберіть --</option>';
 
+            let totalWarehouseWorth = 0;
             let searchStock = document.getElementById('search-stock').value.toLowerCase();
+
             for (let item in inventory) {
+                let data = inventory[item];
+                let buyPrice = data.buyPrice || 0;
+                let sellPrice = data.sellPrice || buyPrice; // якщо рек. ціна не вказана, беремо закупку
+                let itemTotalWorth = (data.kg > 0) ? (data.kg * sellPrice) : 0;
+
+                totalWarehouseWorth += itemTotalWorth;
+
                 if (!item.includes(searchStock)) continue;
                 select.innerHTML += `<option value="${item}">${item.toUpperCase()}</option>`;
-                let data = inventory[item];
                 let colorStyle = data.kg < 5 ? "color: red; font-weight: bold;" : "";
+
                 list.innerHTML += `<tr>
                     <td>${item.toUpperCase()}</td>
                     <td style="${colorStyle}">${data.kg} кг</td>
+                    <td>${buyPrice.toFixed(2)} грн</td>
+                    <td><b>${sellPrice.toFixed(2)} грн</b></td>
+                    <td style="color: #2e7d32; font-weight: bold;">${itemTotalWorth.toFixed(2)} грн</td>
                     <td>
                         <button onclick="editItem('${item}')">Ред.</button>
                         <button onclick="deleteItem('${item}')" style="color:red">Видалити</button>
@@ -283,17 +319,22 @@
                 </tr>`;
             }
 
+            let worthEl = document.getElementById('total-stock-worth');
+            if (worthEl) worthEl.innerText = totalWarehouseWorth.toFixed(2);
+
             // 2. Завіз
             let searchSupply = document.getElementById('search-supply').value.toLowerCase();
             document.getElementById('supply-list').innerHTML = supplies.slice().reverse()
                 .filter(s => s.item.toLowerCase().includes(searchSupply))
                 .map((s, index) => {
                     let realIndex = supplies.length - 1 - index;
+                    let sellP = s.sellPrice ? `${parseFloat(s.sellPrice).toFixed(2)} грн` : '-';
                     return `<tr>
                         <td>${s.date}</td>
                         <td>${s.item.toUpperCase()}</td>
                         <td>${s.qty} кг</td>
-                        <td>${s.price} грн</td>
+                        <td>${parseFloat(s.price).toFixed(2)} грн</td>
+                        <td><b>${sellP}</b></td>
                         <td>${(s.qty * s.price).toFixed(2)} грн</td>
                         <td>
                             <button onclick="editSupply(${realIndex})">Ред.</button>
@@ -336,20 +377,30 @@
             let item = document.getElementById('sup-item').value.trim().toLowerCase();
             let qty = parseFloat(document.getElementById('sup-qty').value);
             let price = parseFloat(document.getElementById('sup-price').value);
-            if (!item || isNaN(qty) || isNaN(price)) return alert("Заповніть усі поля!");
+            let sellPrice = parseFloat(document.getElementById('sup-sell-price').value);
 
-            if (!inventory[item]) inventory[item] = { kg: 0, buyPrice: price };
+            if (!item || isNaN(qty) || isNaN(price) || isNaN(sellPrice)) {
+                return alert("Заповніть усі поля, включно з рекомендованою ціною!");
+            }
+
+            if (!inventory[item]) {
+                inventory[item] = { kg: 0, buyPrice: price, sellPrice: sellPrice };
+            }
             inventory[item].kg += qty;
             inventory[item].buyPrice = price;
+            inventory[item].sellPrice = sellPrice; // зберігаємо рекомендовану ціну на складі
 
             let date = new Date().toLocaleString("uk-UA");
-            supplies.push({ date: date, item, qty, price });
-            sendToGoogle({ type: "supply", date: date, item: item, qty: qty, price: price, total: (qty * price).toFixed(2) });
+            supplies.push({ date: date, item, qty, price, sellPrice });
+
+            sendToGoogle({ type: "supply", date: date, item: item, qty: qty, price: price, sellPrice: sellPrice, total: (qty * price).toFixed(2) });
             sendToGoogle({ type: "sync_stock", inventory: inventory });
+            sendToGoogle({ type: "sync_supplies", supplies: supplies });
             
             document.getElementById('sup-item').value = "";
             document.getElementById('sup-qty').value = "";
             document.getElementById('sup-price').value = "";
+            document.getElementById('sup-sell-price').value = "";
             updateUI();
         }
 
@@ -425,15 +476,18 @@
             let s = supplies[index];
             let newQty = prompt(`Введіть нову вагу (кг) для ${s.item.toUpperCase()}:`, s.qty);
             let newPrice = prompt(`Введіть нову ціну закупки (грн/кг):`, s.price);
+            let newSellPrice = prompt(`Введіть нову рекомендовану ціну продажу (грн/кг):`, s.sellPrice || s.price);
 
-            if (newQty !== null && newPrice !== null && !isNaN(newQty) && !isNaN(newPrice)) {
+            if (newQty !== null && newPrice !== null && newSellPrice !== null && !isNaN(newQty) && !isNaN(newPrice) && !isNaN(newSellPrice)) {
                 let diffKg = parseFloat(newQty) - s.qty;
                 s.qty = parseFloat(newQty);
                 s.price = parseFloat(newPrice);
+                s.sellPrice = parseFloat(newSellPrice);
                 
                 if (inventory[s.item]) {
                     inventory[s.item].kg += diffKg;
                     inventory[s.item].buyPrice = s.price;
+                    inventory[s.item].sellPrice = s.sellPrice;
                 }
                 
                 sendToGoogle({ type: "sync_stock", inventory: inventory });
