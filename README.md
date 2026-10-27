@@ -43,7 +43,7 @@
         <h3>История завозов:</h3>
         <input type="text" id="search-supply" placeholder="Поиск по завозам..." oninput="updateUI()">
         <table>
-            <thead><tr><th>Дата</th><th>Товар</th><th>Кол-во</th><th>Цена</th><th>Стоимость</th></tr></thead>
+            <thead><tr><th>Дата</th><th>Товар</th><th>Кол-во</th><th>Цена</th><th>Стоимость</th><th>Действия</th></tr></thead>
             <tbody id="supply-list"></tbody>
         </table>
     </div>
@@ -60,7 +60,7 @@
         <h3>История продаж:</h3>
         <input type="text" id="search-sales" placeholder="Поиск по продажам..." oninput="updateUI()">
         <table>
-            <thead><tr><th>Товар</th><th>Вес</th><th>Цена за 1 кг</th><th>Сумма</th><th>Время</th></tr></thead>
+            <thead><tr><th>Товар</th><th>Вес</th><th>Цена за 1 кг</th><th>Сумма</th><th>Время</th><th>Действия</th></tr></thead>
             <tbody id="recent-sales-list"></tbody>
         </table>
 <button id="load-more-btn-sales" onclick="loadMoreSales()" style="display:none;">Загрузить еще</button>
@@ -142,28 +142,46 @@ if (!item.includes(searchStock)) continue;
     }
 
     // 2. Завоз
-    let searchSupply = document.getElementById('search-supply').value.toLowerCase();
+        let searchSupply = document.getElementById('search-supply').value.toLowerCase();
     document.getElementById('supply-list').innerHTML = supplies.slice().reverse()
-        .filter(s => s.item.toLowerCase().includes(searchSupply)) // Добавь этот фильтр
-        .map(s => `<tr><td>${s.date}</td><td>${s.item.toUpperCase()}</td><td>${s.qty} кг</td><td>${s.price} грн</td><td>${(s.qty * s.price).toFixed(2)} грн</td></tr>`)
+        .filter(s => s.item.toLowerCase().includes(searchSupply))
+        .map((s, index) => {
+            // Реальный индекс в исходном массиве supplies
+            let realIndex = supplies.length - 1 - index;
+            return `<tr>
+                <td>${s.date}</td>
+                <td>${s.item.toUpperCase()}</td>
+                <td>${s.qty} кг</td>
+                <td>${s.price} грн</td>
+                <td>${(s.qty * s.price).toFixed(2)} грн</td>
+                <td>
+                    <button onclick="editSupply(${realIndex})">Ред.</button>
+                    <button onclick="deleteSupply(${realIndex})" style="color:red">Удалить</button>
+                </td>
+            </tr>`;
+        })
         .join('');
 
     // 3. Продажи
     let searchSales = document.getElementById('search-sales').value.toLowerCase();
-    
-    // Сначала фильтруем весь массив истории
     let filteredSales = history.slice().reverse().filter(h => h.item.toLowerCase().includes(searchSales));
     
-    // Берем только часть массива согласно лимиту salesLimit
     document.getElementById('recent-sales-list').innerHTML = filteredSales
         .slice(0, salesLimit) 
-        .map(h => `<tr>
-            <td>${h.item.toUpperCase()}</td>
-            <td>${h.qty} кг</td>
-            <td>${(h.pricePerKg || 0).toFixed(2)} грн</td>
-            <td>${(h.totalSum || 0).toFixed(2)} грн</td>
-            <td>${h.date}</td>
-        </tr>`)
+        .map((h, index) => {
+            let realIndex = history.length - 1 - index;
+            return `<tr>
+                <td>${h.item.toUpperCase()}</td>
+                <td>${h.qty} кг</td>
+                <td>${(h.pricePerKg || 0).toFixed(2)} грн</td>
+                <td>${(h.totalSum || 0).toFixed(2)} грн</td>
+                <td>${h.date}</td>
+                <td>
+                    <button onclick="editSale(${realIndex})">Ред.</button>
+                    <button onclick="deleteSale(${realIndex})" style="color:red">Удалить</button>
+                </td>
+            </tr>`;
+        })
         .join('');
 
     // Показываем кнопку, если записей еще много
@@ -226,6 +244,85 @@ if (!item.includes(searchStock)) continue;
 
         function deleteItem(item) {
             if (confirm(`Удалить ${item}?`)) { delete inventory[item]; updateUI(); }
+        }
+
+        // УДАЛЕНИЕ И РЕДАКТИРОВАНИЕ ЗАВОЗА
+        function deleteSupply(index) {
+            let s = supplies[index];
+            if (confirm(`Удалить завоз товара ${s.item.toUpperCase()} на ${s.qty} кг?`)) {
+                // Возвращаем остаток склада (списываем ошибочный завоз)
+                if (inventory[s.item]) {
+                    inventory[s.item].kg -= s.qty;
+                    if (inventory[s.item].kg < 0) inventory[s.item].kg = 0;
+                }
+                supplies.splice(index, 1);
+                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                updateUI();
+            }
+        }
+
+        function editSupply(index) {
+            let s = supplies[index];
+            let newQty = prompt(`Введите новый вес (кг) для ${s.item.toUpperCase()}:`, s.qty);
+            let newPrice = prompt(`Введите новую цену закупки (грн/кг):`, s.price);
+
+            if (newQty !== null && newPrice !== null && !isNaN(newQty) && !isNaN(newPrice)) {
+                let diffKg = parseFloat(newQty) - s.qty; // разница в весе
+                s.qty = parseFloat(newQty);
+                s.price = parseFloat(newPrice);
+                
+                // Корректируем склад на разницу
+                if (inventory[s.item]) {
+                    inventory[s.item].kg += diffKg;
+                    inventory[s.item].buyPrice = s.price;
+                }
+                
+                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                updateUI();
+            }
+        }
+
+        // УДАЛЕНИЕ И РЕДАКТИРОВАНИЕ ПРОДАЖИ
+        function deleteSale(index) {
+            let h = history[index];
+            if (confirm(`Удалить продажу товара ${h.item.toUpperCase()} на ${h.qty} кг?`)) {
+                // Возвращаем проданный товар обратно на склад
+                if (inventory[h.item]) {
+                    inventory[h.item].kg += h.qty;
+                }
+                history.splice(index, 1);
+                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                updateUI();
+            }
+        }
+
+        function editSale(index) {
+            let h = history[index];
+            let newQty = prompt(`Введите новый вес продажи (кг) для ${h.item.toUpperCase()}:`, h.qty);
+            let newPrice = prompt(`Введите новую цену продажи за 1 кг (грн):`, h.pricePerKg);
+
+            if (newQty !== null && newPrice !== null && !isNaN(newQty) && !isNaN(newPrice)) {
+                let parsedQty = parseFloat(newQty);
+                let parsedPrice = parseFloat(newPrice);
+                let diffKg = parsedQty - h.qty;
+
+                // Проверяем, хватит ли товара на складе, если увеличиваем продажу
+                if (diffKg > 0 && inventory[h.item].kg < diffKg) {
+                    return alert("На складе недостаточно товара для увеличения продажи!");
+                }
+
+                // Корректируем склад
+                if (inventory[h.item]) {
+                    inventory[h.item].kg -= diffKg;
+                }
+
+                h.qty = parsedQty;
+                h.pricePerKg = parsedPrice;
+                h.totalSum = parsedQty * parsedPrice;
+
+                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                updateUI();
+            }
         }
 
 function editItem(item) {
