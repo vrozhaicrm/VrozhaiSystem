@@ -61,6 +61,7 @@
             <button onclick="showTab('supply')">Завіз</button>
             <button onclick="showTab('sales')">Продажі</button>
             <button onclick="showTab('accounting')">Бухгалтерія</button>
+            <button onclick="loadFromGoogle(true)" style="background: #e3f2fd; border: 1px solid #90caf9; color: #1565c0;" title="Оновити дані з Google Таблиці">🔄 Хмара</button>
             <span id="user-badge" style="margin-left: auto; margin-right: 15px; font-weight: bold; color: #455a64; font-size: 15px;"></span>
             <button class="logout-btn" onclick="logout()">Вийти</button>
         </nav>
@@ -163,9 +164,38 @@
     <script>
         const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbw-PgmkI5M3MvzBK2Xl9JcD7vNBTS-eCUV1-9ykpBy5Wi4doDshV7vc_WCgKf51E_ZGSA/exec";
         
+        // ЗАВАНТАЖЕННЯ ДАНИХ З GOOGLE ТАБЛИЦІ (ДВОСТОРОННІЙ ЗВ'ЯЗОК)
+        function loadFromGoogle(showNotify = false) {
+            let badge = document.getElementById('user-badge');
+            let originalText = badge ? badge.innerText : "";
+            if (badge) badge.innerText = "⏳ Оновлення з хмари...";
+
+            fetch(`${GOOGLE_URL}?action=load_data`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success && res.data) {
+                        inventory = res.data.inventory || {};
+                        supplies = res.data.supplies || [];
+                        history = res.data.history || [];
+
+                        // Оновлюємо пам'ять поточного пристрою
+                        localStorage.setItem('inventory', JSON.stringify(inventory));
+                        localStorage.setItem('supplies', JSON.stringify(supplies));
+                        localStorage.setItem('history', JSON.stringify(history));
+
+                        updateUI();
+                        if (badge) badge.innerText = originalText;
+                        if (showNotify) alert("Дані успішно синхронізовано з хмарою Google!");
+                    }
+                })
+                .catch(err => {
+                    console.error("Помилка завантаження з хмари:", err);
+                    if (badge) badge.innerText = originalText;
+                });
+        }
+
         // ФУНКЦІЇ АВТОРИЗАЦІЇ
         function checkAuth() {
-            // Перевіряємо вхід або в поточній вкладці, або в довготривалій пам'яті
             let isAuth = sessionStorage.getItem('isAuth') === 'true' || localStorage.getItem('isAuth') === 'true';
 
             if (isAuth) {
@@ -178,12 +208,13 @@
                 
                 document.getElementById('user-badge').innerText = `👤 ${name} (${roleText})`;
 
+                // ПРИ ВХОДІ ОДРАЗУ ПІДТЯГУЄМО СВІЖІ ДАНІ З ХМАРИ:
+                loadFromGoogle();
                 updateUI();
             } else {
                 document.getElementById('login-overlay').style.display = 'flex';
                 document.getElementById('app-content').style.display = 'none';
 
-                // Якщо дані були збережені раніше — автоматично підставляємо їх у поля
                 if (localStorage.getItem('savedUser')) {
                     document.getElementById('login-user').value = localStorage.getItem('savedUser');
                     document.getElementById('login-pass').value = localStorage.getItem('savedPass');
