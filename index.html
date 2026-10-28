@@ -359,7 +359,7 @@
         <div class="table-card">
             <table>
                 <thead>
-                    <tr><th>Товар</th><th>Вага</th><th>Ціна за 1 кг</th><th>Сума</th><th>Час</th><th>Дії</th></tr>
+                    <tr><th>Товар</th><th>Вага</th><th>Ціна за 1 кг</th><th>Сума</th><th>Час</th><th>Продавець</th><th>Дії</th></tr>
                 </thead>
                 <tbody id="recent-sales-list"></tbody>
             </table>
@@ -659,17 +659,19 @@
                 .slice(0, salesLimit) 
                 .map((h, index) => {
                     let realIndex = history.length - 1 - index;
-                    return `<tr>
-                        <td>${h.item.toUpperCase()}</td>
-                        <td>${h.qty} кг</td>
-                        <td>${(h.pricePerKg || 0).toFixed(2)} грн</td>
-                        <td>${(h.totalSum || 0).toFixed(2)} грн</td>
-                        <td>${h.date}</td>
-                        <td>
-                            <button onclick="editSale(${realIndex})">Ред.</button>
-                            <button onclick="deleteSale(${realIndex})" style="color:red">Видалити</button>
-                        </td>
-                    </tr>`;
+                    let sellerName = h.seller ? `👤 ${h.seller}` : '-';
+                return `<tr>
+                    <td>${h.item.toUpperCase()}</td>
+                    <td>${h.qty} кг</td>
+                    <td>${(h.pricePerKg || 0).toFixed(2)} грн</td>
+                    <td>${(h.totalSum || 0).toFixed(2)} грн</td>
+                    <td>${h.date}</td>
+                    <td><b style="color: #1b4332;">${sellerName}</b></td>
+                    <td>
+                        <button onclick="editSale(${realIndex})">Ред.</button>
+                        <button onclick="deleteSale(${realIndex})" style="color:red">Видалити</button>
+                    </td>
+                </tr>`;
                 })
                 .join('');
 
@@ -742,15 +744,26 @@
             inventory[item].kg -= qty;
 
             let date = new Date().toLocaleString("uk-UA");
+            let currentSeller = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Невідомий';
+
             history.push({ 
                 item: item, 
                 qty: qty, 
                 pricePerKg: pricePerKg, 
                 totalSum: totalSum, 
-                date: date 
+                date: date,
+                seller: currentSeller
             });
 
-            sendToGoogle({ type: "sale", date: date, item: item, qty: qty, pricePerKg: pricePerKg, totalSum: totalSum.toFixed(2) });
+            sendToGoogle({ 
+                type: "sale", 
+                date: date, 
+                item: item, 
+                qty: qty, 
+                pricePerKg: pricePerKg, 
+                totalSum: totalSum.toFixed(2),
+                seller: currentSeller
+            });
             sendToGoogle({ type: "sync_stock", inventory: inventory });
 
             document.getElementById('sell-qty').value = "";
