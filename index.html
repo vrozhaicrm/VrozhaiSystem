@@ -339,7 +339,13 @@
         
         <!-- ПАНЕЛЬ ВВЕДЕННЯ ПРОДАЖУ -->
         <div class="filter-bar" style="gap: 10px;">
-            <select id="sell-item" style="min-width: 160px;"></select>
+            <select id="sell-item" onchange="onSelectSellItem()" style="min-width: 160px;"></select>
+            
+            <!-- НЕРЕДАГОВАНА ПІДКАЗКА РЕКОМЕНДОВАНОЇ ЦІНИ -->
+            <input type="text" id="sell-rec-price" placeholder="Рек. ціна: -" readonly 
+                   style="background: #e8e8e4; width: 140px; cursor: not-allowed; font-weight: 600; color: #1b4332;" 
+                   title="Рекомендована ціна з завозу (тільки для перегляду)">
+
             <input type="number" id="sell-qty" placeholder="Кг" style="width: 110px;">
             <input type="number" id="sell-price" placeholder="Ціна за 1 кг (грн)" style="width: 160px;">
             <button class="primary-btn" onclick="sellItem()">💳 Продати</button>
@@ -705,6 +711,24 @@
             updateUI();
         }
 
+        // АВТОПІДТЯГУВАННЯ РЕКОМЕНДОВАНОЇ ЦІНИ ПРИ ВИБОРІ ТОВАРУ
+        function onSelectSellItem() {
+            let item = document.getElementById('sell-item').value;
+            let recInput = document.getElementById('sell-rec-price');
+            let priceInput = document.getElementById('sell-price');
+            
+            if (item && inventory[item]) {
+                let recPrice = inventory[item].sellPrice || inventory[item].buyPrice || 0;
+                recInput.value = `Рек: ${recPrice.toFixed(2)} грн`;
+                
+                // Автоматично підставляємо цю ціну у поле продажу (продавець може змінити за потреби)
+                priceInput.value = recPrice.toFixed(2);
+            } else {
+                recInput.value = "";
+                priceInput.value = "";
+            }
+        }
+
         function sellItem() {
             let item = document.getElementById('sell-item').value;
             let qty = parseFloat(document.getElementById('sell-qty').value);
@@ -731,6 +755,7 @@
 
             document.getElementById('sell-qty').value = "";
             document.getElementById('sell-price').value = "";
+            document.getElementById('sell-rec-price').value = ""; // очищаємо підказку
             updateUI();
         }
 
