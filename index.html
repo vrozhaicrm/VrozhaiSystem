@@ -319,12 +319,12 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Дата</th>
                         <th>Товар</th>
                         <th>К-сть</th>
                         <th>Ціна покупки</th>
                         <th>Рек. ціна</th>
                         <th>Загальна вартість закупки</th>
+                        <th>Дата</th>
                         <th>Дії</th>
                     </tr>
                 </thead>
@@ -637,12 +637,12 @@
                     let realIndex = supplies.length - 1 - index;
                     let sellP = s.sellPrice ? `${parseFloat(s.sellPrice).toFixed(2)} грн` : '-';
                     return `<tr>
-                        <td>${s.date}</td>
                         <td>${s.item.toUpperCase()}</td>
                         <td>${s.qty} кг</td>
                         <td>${parseFloat(s.price).toFixed(2)} грн</td>
                         <td><b>${sellP}</b></td>
                         <td>${(s.qty * s.price).toFixed(2)} грн</td>
+                        <td><small style="color: #777;">${s.date}</small></td>
                         <td>
                             <button onclick="editSupply(${realIndex})">Ред.</button>
                             <button onclick="deleteSupply(${realIndex})" style="color:red">Видалити</button>
