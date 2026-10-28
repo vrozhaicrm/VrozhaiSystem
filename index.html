@@ -578,6 +578,11 @@
             document.querySelectorAll('.pill-nav button').forEach(b => b.classList.remove('active'));
             if (btn) btn.classList.add('active');
             showTab(tabId);
+            
+            // Якщо відкрили бухгалтерію — одразу запускаємо підрахунок
+            if (tabId === 'accounting') {
+                updateFilterInput();
+            }
         }
 
         function updateUI() {
@@ -834,11 +839,47 @@
             }
         }
 
+        // РОЗУМНЕ РОЗПІЗНАВАННЯ ДАТИ
+        function parseDateHelper(dateStr) {
+            if (!dateStr) return null;
+            let s = String(dateStr).trim();
+
+            // 1. Якщо дата через крапки: DD.MM.YYYY (наприклад: 28.10.2026)
+            let matchDot = s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+            if (matchDot) {
+                let y = matchDot[3];
+                let m = matchDot[2].padStart(2, '0');
+                let d = matchDot[1].padStart(2, '0');
+                return { yyyy_mm_dd: `${y}-${m}-${d}`, yyyy_mm: `${y}-${m}`, year: y };
+            }
+
+            // 2. Якщо дата через дефіси: YYYY-MM-DD
+            let matchDash = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+            if (matchDash) {
+                let y = matchDash[1];
+                let m = matchDash[2].padStart(2, '0');
+                let d = matchDash[3].padStart(2, '0');
+                return { yyyy_mm_dd: `${y}-${m}-${d}`, yyyy_mm: `${y}-${m}`, year: y };
+            }
+
+            // 3. Якщо це системна дата JS
+            let parsed = new Date(s);
+            if (!isNaN(parsed.getTime())) {
+                let y = String(parsed.getFullYear());
+                let m = String(parsed.getMonth() + 1).padStart(2, '0');
+                let d = String(parsed.getDate()).padStart(2, '0');
+                return { yyyy_mm_dd: `${y}-${m}-${d}`, yyyy_mm: `${y}-${m}`, year: y };
+            }
+
+            return null;
+        }
+
+        // ПІДРАХУНОК БУХГАЛТЕРІЇ
         function filterAccounting() {
             let mode = document.getElementById('filter-mode').value;
             let inputEl = document.getElementById('filter-value');
             if (!inputEl) return;
-            let val = inputEl.value; 
+            let val = String(inputEl.value).trim(); 
             let list = document.getElementById('accounting-list');
             let income = 0, expense = 0;
             list.innerHTML = "";
@@ -846,30 +887,28 @@
             if (!val) return;
 
             history.forEach(h => {
-                let d = h.date.split(',')[0].trim().split('.'); 
-                let yyyy_mm_dd = `${d[2]}-${d[1].padStart(2, '0')}-${d[0].padStart(2, '0')}`;
-                let yyyy_mm = `${d[2]}-${d[1].padStart(2, '0')}`;
-                let yyyy = d[2];
+                let p = parseDateHelper(h.date);
+                if (!p) return;
 
                 let match = false;
-                if (mode === 'day' && yyyy_mm_dd === val) match = true;
-                else if (mode === 'month' && yyyy_mm === val) match = true;
-                else if (mode === 'year' && yyyy === val) match = true;
+                if (mode === 'day' && p.yyyy_mm_dd === val) match = true;
+                else if (mode === 'month' && p.yyyy_mm === val) match = true;
+                else if (mode === 'year' && p.year === val) match = true;
 
                 if (match) {
                     let buyPrice = (inventory[h.item] && inventory[h.item].buyPrice) ? inventory[h.item].buyPrice : 0;
-                    let currentSaleSum = parseFloat(h.totalSum) || 0;
+                    let currentSaleSum = parseFloat(h.totalSum) || (parseFloat(h.qty) * parseFloat(h.pricePerKg)) || 0;
                     let currentQty = parseFloat(h.qty) || 0;
                     
                     income += currentSaleSum;
                     expense += (currentQty * buyPrice);
                     
                     list.innerHTML += `<tr>
-                        <td>${h.item.toUpperCase()}</td>
+                        <td><b>${h.item.toUpperCase()}</b></td>
                         <td>${currentQty} кг</td>
                         <td>${(parseFloat(h.pricePerKg) || 0).toFixed(2)} грн</td>
-                        <td>${currentSaleSum.toFixed(2)} грн</td>
-                        <td>${h.date}</td>
+                        <td style="font-weight: 600; color: #1b4332;">${currentSaleSum.toFixed(2)} грн</td>
+                        <td><small style="color: #777;">${h.date}</small></td>
                     </tr>`;
                 }
             });
@@ -879,21 +918,25 @@
             document.getElementById('total-profit').innerText = (income - expense).toFixed(2);
         }
 
+        // ПЕРЕМИКАННЯ РЕЖИМІВ (ДЕНЬ / МІСЯЦЬ / РІК)
         function updateFilterInput() {
             let mode = document.getElementById('filter-mode').value;
             let container = document.getElementById('filter-input-container');
+            let now = new Date();
+            let curYear = now.getFullYear();
+            let curMonth = `${curYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            let curDay = `${curMonth}-${String(now.getDate()).padStart(2, '0')}`;
             
             if (mode === 'day') {
-                container.innerHTML = `<input type="date" id="filter-value" onchange="filterAccounting()">`;
+                container.innerHTML = `<input type="date" id="filter-value" value="${curDay}" onchange="filterAccounting()">`;
             } else if (mode === 'month') {
-                container.innerHTML = `<input type="month" id="filter-value" onchange="filterAccounting()">`;
+                container.innerHTML = `<input type="month" id="filter-value" value="${curMonth}" onchange="filterAccounting()">`;
             } else if (mode === 'year') {
-                container.innerHTML = `<input type="number" id="filter-value" value="2024" min="2000" max="2099" oninput="filterAccounting()">`;
+                container.innerHTML = `<input type="number" id="filter-value" value="${curYear}" min="2020" max="2099" oninput="filterAccounting()">`;
             }
-            document.getElementById('accounting-list').innerHTML = "";
-            document.getElementById('total-income').innerText = "0";
-            document.getElementById('total-expense').innerText = "0";
-            document.getElementById('total-profit').innerText = "0";
+
+            // Одразу запускаємо підрахунок після зміни режиму
+            filterAccounting();
         }
 
         checkAuth();
