@@ -4,33 +4,218 @@
     <meta charset="UTF-8">
     <title>Врожай</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        h1.main-title { color: #1976d2; margin-top: 0; margin-bottom: 15px; font-size: 28px; }
-        .tab { display: none; }
-        .active { display: block; }
-        button { padding: 8px; margin: 5px; cursor: pointer; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-        nav { margin-bottom: 20px; }
-        nav button { background: #f0f0f0; border: 1px solid #ccc; font-size: 16px; }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #f6f5f1; 
+            color: #2c3e50; 
+            padding: 30px; 
+            margin: 0; 
+        }
 
-        /* Стилі вікна авторизації */
+        /* Логотип */
+        .brand-logo {
+            font-family: 'Georgia', serif;
+            font-size: 32px;
+            font-weight: 700;
+            color: #1b4332;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Верхня панель з навігацією та профілем */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        /* Овальні вкладки меню */
+        nav.pill-nav {
+            background: #e5e5e0;
+            padding: 5px;
+            border-radius: 14px;
+            display: inline-flex;
+            gap: 4px;
+        }
+        nav.pill-nav button {
+            border: none;
+            background: transparent;
+            padding: 9px 20px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #444;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        nav.pill-nav button:hover { background: rgba(0,0,0,0.04); }
+        nav.pill-nav button.active {
+            background: #006442;
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(0,100,66,0.2);
+        }
+
+        /* Картка профілю праворуч */
+        .profile-card {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            border: 1px solid #ebebeb;
+        }
+        .avatar-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #dcdcd7;
+        }
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+            text-align: left;
+        }
+        .profile-name { font-size: 14px; font-weight: 600; color: #222; }
+        .profile-role { font-size: 12px; color: #777; }
+        .logout-link {
+            border-left: 1px solid #eee;
+            padding-left: 12px;
+            color: #555;
+            text-decoration: underline;
+            font-size: 13px;
+            cursor: pointer;
+            background: none;
+            border-top: none; border-right: none; border-bottom: none;
+        }
+        .logout-link:hover { color: #d32f2f; }
+
+        /* Картки Бухгалтерії («Разом за період») */
+        .section-title { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 12px; }
+        .kpi-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .kpi-card {
+            flex: 1;
+            min-width: 180px;
+            border-radius: 14px;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+        .kpi-income { background: #d8f3dc; }
+        .kpi-expense { background: #ffe3e0; }
+        .kpi-profit { background: #ffffff; border: 2px solid #006442; }
+        
+        .kpi-header { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #222; }
+        .kpi-icon {
+            width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 12px; font-weight: bold;
+        }
+        .icon-income { background: #2d6a4f; }
+        .icon-expense { background: #d90429; }
+        .icon-profit { background: #006442; }
+        .kpi-value { font-size: 32px; font-weight: 800; color: #111; margin: 0; }
+
+        /* Фільтр та інпути */
+        .filter-bar {
+            background: #eae9e4;
+            padding: 10px 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-bar select, .filter-bar input, input[type="text"], input[type="number"], input[type="date"], select {
+            background: #ffffff;
+            border: 1px solid #dcdbd6;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        /* Таблиці */
+        .table-card {
+            background: #ffffff;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            border: 1px solid #e5e5e0;
+            margin-top: 15px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        
+        /* Стилізація кнопок у таблицях */
+        table button {
+            background: #ffffff; border: 1px solid #dcdbd6; border-radius: 6px;
+            padding: 5px 10px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-right: 4px;
+        }
+        table button:hover { background: #f0f0ec; }
+        table button[style*="color:red"], table button[style*="color: red"] {
+            color: #d32f2f !important; border-color: #ffcdd2; background: #fffafa;
+        }
+        table button[style*="color:red"]:hover { background: #ffebee; }
+        
+        th {
+            background: #f3f2ee;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 13px;
+            color: #666;
+            font-weight: 600;
+            border-bottom: 1px solid #e5e5e0;
+        }
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0ec;
+            font-size: 14px;
+            color: #333;
+        }
+        tr:last-child td { border-bottom: none; }
+        
+        button.action-btn {
+            background: #f0f0ec; border: 1px solid #dcdbd6;
+            border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px;
+        }
+        button.action-btn:hover { background: #e2e1dc; }
+        button.primary-btn {
+            background: #006442; color: white; border: none;
+            border-radius: 8px; padding: 9px 18px; cursor: pointer; font-weight: 600;
+        }
+        button.primary-btn:hover { background: #004d33; }
+
+        .tab { display: none; }
+        .tab.active { display: block; }
+
+        /* Модальне вікно логіна */
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #f4f6f9; display: flex; justify-content: center; align-items: center; z-index: 9999;
+            background: #f6f5f1; display: flex; justify-content: center; align-items: center; z-index: 9999;
         }
         .login-box {
-            background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            width: 300px; text-align: center;
+            background: white; padding: 35px; border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06); width: 320px; text-align: center; border: 1px solid #e5e5e0;
         }
-        .login-box input {
-            width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;
-        }
-        .login-box button {
-            width: 100%; padding: 10px; background: #1976d2; color: white; border: none; border-radius: 4px; font-size: 16px;
-        }
-        .logout-btn { margin-left: auto; background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
-        
+        .login-box input { width: 100%; margin: 8px 0; }
+        .login-box button { width: 100%; padding: 11px; background: #006442; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -54,90 +239,164 @@
 
     <!-- ГОЛОВНИЙ ІНТЕРФЕЙС CRM (прихований до входу) -->
     <div id="app-content" style="display: none;">
-        <h1 class="main-title">Врожай</h1>
+        
+        <!-- ЛОГОТИП -->
+        <div class="brand-logo">Врожай 🍏</div>
 
-        <nav>
-            <button onclick="showTab('stock')">Склад</button>
-            <button onclick="showTab('supply')">Завіз</button>
-            <button onclick="showTab('sales')">Продажі</button>
-            <button onclick="showTab('accounting')">Бухгалтерія</button>
-            <button onclick="loadFromGoogle(true)" style="background: #e3f2fd; border: 1px solid #90caf9; color: #1565c0;" title="Оновити дані з Google Таблиці">🔄 Хмара</button>
-            <span id="user-badge" style="margin-left: auto; margin-right: 15px; font-weight: bold; color: #455a64; font-size: 15px;"></span>
-            <button class="logout-btn" onclick="logout()">Вийти</button>
-        </nav>
+        <!-- ВЕРХНЯ ПАНЕЛЬ: МЕНЮ ТА ПРОФІЛЬ -->
+        <div class="top-bar">
+            <nav class="pill-nav" id="main-nav">
+                <button class="nav-btn active" onclick="switchTab(this, 'stock')">Склад</button>
+                <button class="nav-btn" onclick="switchTab(this, 'supply')">Завіз</button>
+                <button class="nav-btn" onclick="switchTab(this, 'sales')">Продажі</button>
+                <button class="nav-btn" onclick="switchTab(this, 'accounting')">Бухгалтерія</button>
+                <button class="nav-btn" onclick="loadFromGoogle(true)" title="Оновити з Google" style="color: #006442;">🔄 Хмара</button>
+            </nav>
+
+            <div class="profile-card">
+                <div class="avatar-circle"></div>
+                <div class="profile-info">
+                    <span class="profile-name" id="user-name-display">Користувач</span>
+                    <span class="profile-role" id="user-role-display">(Роль)</span>
+                </div>
+                <button class="logout-link" onclick="logout()">Вийти</button>
+            </div>
+        </div>
 
      <!-- СКЛАД -->
     <div id="stock" class="tab active">
-        <h2>Склад</h2>
-        <p style="font-size: 16px; margin-bottom: 10px;">
-            Орієнтовна каса складу (якщо все продати): <b><span id="total-stock-worth" style="color: #2e7d32;">0</span> грн</b>
-        </p>
-        <input type="text" id="search-stock" placeholder="Пошук товару..." oninput="updateUI()">
-        <table>
-            <thead>
-                <tr>
-                    <th>Товар</th>
-                    <th>Залишок (кг)</th>
-                    <th>Ціна покупки</th>
-                    <th>Рек. ціна продажу</th>
-                    <th>Орієнтовна каса</th>
-                    <th>Дії</th>
-                </tr>
-            </thead>
-            <tbody id="stock-list"></tbody>
-        </table>
+        <!-- КАРТКА ВАРТОСТІ СКЛАДУ -->
+        <div class="kpi-row" style="margin-bottom: 20px;">
+            <div class="kpi-card kpi-income" style="max-width: 380px;">
+                <div class="kpi-header">
+                    <span class="kpi-icon icon-income">📦</span>
+                    <span>Орієнтовна каса складу (якщо все продати)</span>
+                </div>
+                <div class="kpi-value"><span id="total-stock-worth">0</span> грн</div>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <input type="text" id="search-stock" placeholder="🔍 Пошук товару на складі..." oninput="updateUI()" style="width: 100%; max-width: 320px;">
+        </div>
+
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Товар</th>
+                        <th>Залишок (кг)</th>
+                        <th>Ціна покупки</th>
+                        <th>Рек. ціна продажу</th>
+                        <th>Орієнтовна каса</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody id="stock-list"></tbody>
+            </table>
+        </div>
     </div>
 
     <!-- ЗАВІЗ -->
     <div id="supply" class="tab">
-        <h2>Завіз товару</h2>
-        <input type="text" id="sup-item" placeholder="Назва товару">
-        <input type="number" id="sup-qty" placeholder="Кг">
-        <input type="number" id="sup-price" placeholder="Ціна покупки (грн/кг)">
-        <input type="number" id="sup-sell-price" placeholder="Рек. ціна продажу (грн/кг)">
-        <button onclick="addSupply()">Оприбуткувати</button>
+        <div class="section-title">Оприбуткування товару</div>
         
-        <h3>Історія завозів:</h3>
-        <input type="text" id="search-supply" placeholder="Пошук по завозах..." oninput="updateUI()">
-        <table>
-            <thead>
-                <tr>
-                    <th>Дата</th>
-                    <th>Товар</th>
-                    <th>К-сть</th>
-                    <th>Ціна покупки</th>
-                    <th>Рек. ціна</th>
-                    <th>Загальна вартість закупки</th>
-                    <th>Дії</th>
-                </tr>
-            </thead>
-            <tbody id="supply-list"></tbody>
-        </table>
-    </div>
+        <!-- ПАНЕЛЬ ВВЕДЕННЯ ЗАВОЗУ -->
+        <div class="filter-bar" style="gap: 10px;">
+            <input type="text" id="sup-item" placeholder="Назва товару">
+            <input type="number" id="sup-qty" placeholder="Кг" style="width: 100px;">
+            <input type="number" id="sup-price" placeholder="Ціна покупки (грн/кг)" style="width: 170px;">
+            <input type="number" id="sup-sell-price" placeholder="Рек. ціна (грн/кг)" style="width: 170px;">
+            <button class="primary-btn" onclick="addSupply()">+ Оприбуткувати</button>
+        </div>
+        
+        <div class="section-title" style="margin-top: 25px;">Історія завозів</div>
+        <div class="filter-bar">
+            <input type="text" id="search-supply" placeholder="🔍 Пошук по завозах..." oninput="updateUI()" style="width: 100%; max-width: 320px;">
+        </div>
 
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Товар</th>
+                        <th>К-сть</th>
+                        <th>Ціна покупки</th>
+                        <th>Рек. ціна</th>
+                        <th>Загальна вартість закупки</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody id="supply-list"></tbody>
+            </table>
+        </div>
+    </div>
+        
     <!-- ПРОДАЖІ -->
     <div id="sales" class="tab">
-        <h2>Продажі</h2>
-        <label>Оберіть товар:</label>
-        <select id="sell-item"></select>
-        <input type="number" id="sell-qty" placeholder="Кг">
-        <input type="number" id="sell-price" placeholder="Сума (грн)">
-        <button onclick="sellItem()">Продати</button>
+        <div class="section-title">Оформлення продажу</div>
+        
+        <!-- ПАНЕЛЬ ВВЕДЕННЯ ПРОДАЖУ -->
+        <div class="filter-bar" style="gap: 10px;">
+            <select id="sell-item" style="min-width: 160px;"></select>
+            <input type="number" id="sell-qty" placeholder="Кг" style="width: 110px;">
+            <input type="number" id="sell-price" placeholder="Ціна за 1 кг (грн)" style="width: 160px;">
+            <button class="primary-btn" onclick="sellItem()">💳 Продати</button>
+        </div>
 
-        <h3>Історія продажів:</h3>
-        <input type="text" id="search-sales" placeholder="Пошук по продажах..." oninput="updateUI()">
-        <table>
-            <thead><tr><th>Товар</th><th>Вага</th><th>Ціна за 1 кг</th><th>Сума</th><th>Час</th><th>Дії</th></tr></thead>
-            <tbody id="recent-sales-list"></tbody>
-        </table>
-        <button id="load-more-btn-sales" onclick="loadMoreSales()" style="display:none;">Завантажити ще</button>
+        <div class="section-title" style="margin-top: 25px;">Історія продажів</div>
+        <div class="filter-bar">
+            <input type="text" id="search-sales" placeholder="🔍 Пошук по продажах..." oninput="updateUI()" style="width: 100%; max-width: 320px;">
+        </div>
+
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr><th>Товар</th><th>Вага</th><th>Ціна за 1 кг</th><th>Сума</th><th>Час</th><th>Дії</th></tr>
+                </thead>
+                <tbody id="recent-sales-list"></tbody>
+            </table>
+        </div>
+        
+        <div style="text-align: center; margin-top: 15px;">
+            <button id="load-more-btn-sales" class="action-btn" onclick="loadMoreSales()" style="display:none; padding: 8px 18px; font-weight: 600;">Завантажити ще</button>
+        </div>
     </div>
 
     <!-- БУХГАЛТЕРІЯ -->
     <div id="accounting" class="tab">
-        <h2>Бухгалтерія</h2>
-        <div style="background: #f9f9f9; padding: 15px; border-radius: 5px;">
-            <label>Режим:</label>
+        <div class="section-title">Разом за період</div>
+        
+        <!-- 3 СТИЛЬНІ КАРТКИ ЗІ СКРІНШОТА -->
+        <div class="kpi-row">
+            <div class="kpi-card kpi-income">
+                <div class="kpi-header">
+                    <span class="kpi-icon icon-income">↑</span>
+                    <span>Дохід</span>
+                </div>
+                <div class="kpi-value"><span id="total-income">0</span> грн</div>
+            </div>
+
+            <div class="kpi-card kpi-expense">
+                <div class="kpi-header">
+                    <span class="kpi-icon icon-expense">↓</span>
+                    <span>Витрата</span>
+                </div>
+                <div class="kpi-value"><span id="total-expense">0</span> грн</div>
+            </div>
+
+            <div class="kpi-card kpi-profit">
+                <div class="kpi-header">
+                    <span class="kpi-icon icon-profit">★</span>
+                    <span>Прибуток</span>
+                </div>
+                <div class="kpi-value"><span id="total-profit">0</span> грн</div>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <label style="font-weight: 500;">Режим:</label>
             <select id="filter-mode" onchange="updateFilterInput()">
                 <option value="day">День</option>
                 <option value="month">Місяць</option>
@@ -149,17 +408,16 @@
             </span>
         </div>
 
-        <h3>Разом за період:</h3>
-        <p>Дохід: <b><span id="total-income">0</span></b> грн | 
-           Витрата: <b><span id="total-expense">0</span></b> грн | 
-           Прибуток: <b><span id="total-profit">0</span></b> грн</p>
-        
-        <table>
-            <thead><tr><th>Товар</th><th>Вага</th><th>Ціна/кг</th><th>Сума продажу</th><th>Дата</th></tr></thead>
-            <tbody id="accounting-list"></tbody>
-        </table>
-    </div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr><th>Товар</th><th>Вага</th><th>Ціна/кг</th><th>Сума продажу</th><th>Дата</th></tr>
+                </thead>
+                <tbody id="accounting-list"></tbody>
+            </table>
         </div>
+    </div> <!-- кінець бухгалтерії -->
+</div> <!-- кінець app-content -->
 
     <script>
         const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbw-PgmkI5M3MvzBK2Xl9JcD7vNBTS-eCUV1-9ykpBy5Wi4doDshV7vc_WCgKf51E_ZGSA/exec";
@@ -206,7 +464,8 @@
                 let name = sessionStorage.getItem('userName') || localStorage.getItem('userName') || '';
                 let roleText = (role === 'admin') ? '👑 Адміністратор' : '🛒 Продавець';
                 
-                document.getElementById('user-badge').innerText = `👤 ${name} (${roleText})`;
+                document.getElementById('user-name-display').innerText = name || 'Користувач';
+                document.getElementById('user-role-display').innerText = (role === 'admin') ? '(Адміністратор)' : '(Продавець)';
 
                 // ПРИ ВХОДІ ОДРАЗУ ПІДТЯГУЄМО СВІЖІ ДАНІ З ХМАРИ:
                 loadFromGoogle();
@@ -313,6 +572,12 @@
         function showTab(tabId) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
+        }
+
+        function switchTab(btn, tabId) {
+            document.querySelectorAll('.pill-nav button').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            showTab(tabId);
         }
 
         function updateUI() {
