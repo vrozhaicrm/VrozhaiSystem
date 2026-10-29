@@ -339,32 +339,49 @@
     <div id="sales" class="tab">
         <div class="section-title">Оформлення продажу</div>
         
-        <!-- ПАНЕЛЬ ВВЕДЕННЯ ПРОДАЖУ -->
-        <div class="filter-bar" style="gap: 10px; flex-wrap: wrap;">
-            <select id="sell-item" onchange="onSelectSellItem()" style="min-width: 150px;"></select>
+        <!-- ПАНЕЛЬ ВВЕДЕННЯ ПРОДАЖУ (МУЛЬТИ-ЧЕК) -->
+        <div style="background: #ffffff; border: 1px solid #e5e5e0; border-radius: 14px; padding: 18px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
             
-            <!-- Рекомендована ціна -->
-            <input type="text" id="sell-rec-price" placeholder="Рек. ціна: -" readonly 
-                   style="background: #e8e8e4; width: 130px; cursor: not-allowed; font-weight: 600; color: #1b4332;" 
-                   title="Рекомендована ціна з завозу">
+            <!-- СПИСОК РЯДКІВ ТОВАРІВ У ЧЕКУ -->
+            <div id="sale-rows-container">
+                <div class="sale-item-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                    <select class="sell-item" onchange="onSelectRowItem(this)" style="min-width: 160px;"></select>
+                    <input type="text" class="sell-rec-price" placeholder="Рек. ціна" readonly 
+                           style="background: #e8e8e4; width: 125px; cursor: not-allowed; font-weight: 600; color: #1b4332;">
+                    <input type="number" class="sell-qty" placeholder="Кг" oninput="calcSaleTotals()" style="width: 90px;">
+                    <input type="number" class="sell-price" placeholder="Ціна/кг" oninput="calcSaleTotals()" style="width: 120px;">
+                    <input type="text" class="sell-row-total" placeholder="0.00 грн" readonly 
+                           style="background: #fbfbf9; width: 110px; cursor: not-allowed; font-weight: 700; color: #333;" title="Сума за цей товар">
+                </div>
+            </div>
 
-            <!-- Вага та ціна з миттєвим перерахунком (oninput) -->
-            <input type="number" id="sell-qty" placeholder="Кг" oninput="calcSellTotal()" style="width: 95px;">
-            <input type="number" id="sell-price" placeholder="Ціна за 1 кг" oninput="calcSellTotal()" style="width: 130px;">
-            
-            <!-- НЕЗАПОВНЮВАНЕ ПОЛЕ РАЗОМ ДО СПЛАТИ -->
-            <input type="text" id="sell-total-preview" placeholder="Разом: 0 грн" readonly 
-                   style="background: #e8f5e9; width: 150px; cursor: not-allowed; font-weight: 800; color: #006442; border: 1.5px solid #81c784;" 
-                   title="Сума до сплати (рахується автоматично)">
+            <!-- ПАНЕЛЬ ДІЙ, ОПЛАТИ ТА ПІДСУМКУ -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #e0e0dc; flex-wrap: wrap; gap: 12px;">
+                
+                <!-- ЗЛІВА: ДОДАТИ ПОЗИЦІЮ, ТИП ОПЛАТИ, РАЗОМ ЧЕКА -->
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button type="button" class="action-btn" onclick="addSaleItemRow()" 
+                            style="background: #e8f5e9; border-color: #a5d6a7; color: #006442; font-weight: 700; padding: 8px 14px; font-size: 14px;" 
+                            title="Додати ще один товар у цей чек">
+                        ➕ Додати позицію
+                    </button>
 
-            <!-- ТИП ОПЛАТИ (3 варіанти) -->
-            <select id="sell-pay-type" style="min-width: 130px; font-weight: 500;">
-                <option value="Готівка">💵 Готівка</option>
-                <option value="На карту">💳 На карту</option>
-                <option value="Термінал">📟 Термінал</option>
-            </select>
+                    <select id="sell-pay-type" style="min-width: 130px; font-weight: 500;">
+                        <option value="Готівка">💵 Готівка</option>
+                        <option value="На карту">💳 На карту</option>
+                        <option value="Термінал">📟 Термінал</option>
+                    </select>
 
-            <button class="primary-btn" onclick="sellItem()">Продати</button>
+                    <input type="text" id="sell-total-preview" placeholder="Разом: 0 грн" readonly 
+                           style="background: #e8f5e9; width: 160px; cursor: not-allowed; font-weight: 800; color: #006442; border: 1.5px solid #81c784; font-size: 15px;">
+                </div>
+
+                <!-- СПРАВА: КНОПКА ПРОДАТИ (ЗСУНУТА В КРАЙ) -->
+                <div>
+                    <button class="primary-btn" onclick="sellItem()" style="padding: 10px 28px; font-size: 15px;">💳 Продати чек</button>
+                </div>
+
+            </div>
         </div>
 
         <div class="section-title" style="margin-top: 25px;">Історія продажів</div>
@@ -635,8 +652,7 @@
             // 1. Склад
             let list = document.getElementById('stock-list');
             list.innerHTML = "";
-            let select = document.getElementById('sell-item');
-            select.innerHTML = '<option value="">-- Оберіть --</option>';
+            document.querySelectorAll('.sell-item').forEach(sel => fillItemOptions(sel));
 
             let totalWarehouseWorth = 0;
             let searchStock = document.getElementById('search-stock').value.toLowerCase();
@@ -650,7 +666,6 @@
                 totalWarehouseWorth += itemTotalWorth;
 
                 if (!item.includes(searchStock)) continue;
-                select.innerHTML += `<option value="${item}">${item.toUpperCase()}</option>`;
                 let colorStyle = data.kg < 5 ? "color: red; font-weight: bold;" : "";
 
                 list.innerHTML += `<tr>
@@ -756,82 +771,155 @@
             updateUI();
         }
 
-        // АВТОПІДТЯГУВАННЯ РЕКОМЕНДОВАНОЇ ЦІНИ ПРИ ВИБОРІ ТОВАРУ
-        function onSelectSellItem() {
-            let item = document.getElementById('sell-item').value;
-            let recInput = document.getElementById('sell-rec-price');
-            let priceInput = document.getElementById('sell-price');
+        // НАПОВНЕННЯ СПИСКУ ТОВАРІВ
+        function fillItemOptions(selectEl) {
+            let cur = selectEl.value;
+            selectEl.innerHTML = '<option value="">-- Оберіть товар --</option>';
+            for (let item in inventory) {
+                selectEl.innerHTML += `<option value="${item}">${item.toUpperCase()}</option>`;
+            }
+            if (cur) selectEl.value = cur;
+        }
+
+        // ДОДАВАННЯ НОВОГО РЯДКА ТОВАРУ ПО КНОПЦІ ПЛЮС
+        function addSaleItemRow() {
+            let container = document.getElementById('sale-rows-container');
+            let div = document.createElement('div');
+            div.className = 'sale-item-row';
+            div.style.cssText = 'display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;';
             
+            div.innerHTML = `
+                <select class="sell-item" onchange="onSelectRowItem(this)" style="min-width: 160px;"></select>
+                <input type="text" class="sell-rec-price" placeholder="Рек. ціна" readonly 
+                       style="background: #e8e8e4; width: 125px; cursor: not-allowed; font-weight: 600; color: #1b4332;">
+                <input type="number" class="sell-qty" placeholder="Кг" oninput="calcSaleTotals()" style="width: 90px;">
+                <input type="number" class="sell-price" placeholder="Ціна/кг" oninput="calcSaleTotals()" style="width: 120px;">
+                <input type="text" class="sell-row-total" placeholder="0.00 грн" readonly 
+                       style="background: #fbfbf9; width: 110px; cursor: not-allowed; font-weight: 700; color: #333;">
+                <button type="button" onclick="removeSaleRow(this)" style="background: #fff; border: 1px solid #ffcdd2; color: #d32f2f; border-radius: 6px; padding: 6px 10px; cursor: pointer;" title="Видалити цей рядок">✖</button>
+            `;
+            
+            container.appendChild(div);
+            fillItemOptions(div.querySelector('.sell-item'));
+        }
+
+        // ВИДАЛЕННЯ РЯДКА
+        function removeSaleRow(btn) {
+            btn.parentElement.remove();
+            calcSaleTotals();
+        }
+
+        // АВТОПІДТЯГУВАННЯ РЕКОМЕНДОВАНОЇ ЦІНИ В РЯДКУ
+        function onSelectRowItem(selectEl) {
+            let row = selectEl.closest('.sale-item-row');
+            let item = selectEl.value;
+            let recInput = row.querySelector('.sell-rec-price');
+            let priceInput = row.querySelector('.sell-price');
+
             if (item && inventory[item]) {
-                let recPrice = inventory[item].sellPrice || inventory[item].buyPrice || 0;
-                recInput.value = `Рек: ${recPrice.toFixed(2)} грн`;
-                priceInput.value = recPrice.toFixed(2);
-                calcSellTotal(); // одразу перераховуємо суму, якщо вага вже була введена
+                let rec = inventory[item].sellPrice || inventory[item].buyPrice || 0;
+                recInput.value = `Рек: ${rec.toFixed(2)}`;
+                priceInput.value = rec.toFixed(2);
             } else {
                 recInput.value = "";
                 priceInput.value = "";
-                calcSellTotal();
             }
+            calcSaleTotals();
         }
 
-        // АВТОМАТИЧНИЙ ПІДРАХУНОК СУМИ ДО СПЛАТИ
-        function calcSellTotal() {
-            let qty = parseFloat(document.getElementById('sell-qty').value) || 0;
-            let price = parseFloat(document.getElementById('sell-price').value) || 0;
+        // ПІДРАХУНОК УСЬОГО ЧЕКА
+        function calcSaleTotals() {
+            let rows = document.querySelectorAll('.sale-item-row');
+            let grandTotal = 0;
+
+            rows.forEach(r => {
+                let qty = parseFloat(r.querySelector('.sell-qty').value) || 0;
+                let price = parseFloat(r.querySelector('.sell-price').value) || 0;
+                let lineTotal = qty * price;
+                r.querySelector('.sell-row-total').value = (lineTotal > 0) ? `${lineTotal.toFixed(2)} грн` : "";
+                grandTotal += lineTotal;
+            });
+
             let preview = document.getElementById('sell-total-preview');
-            
-            if (qty > 0 && price > 0) {
-                preview.value = `Разом: ${(qty * price).toFixed(2)} грн`;
-            } else {
-                preview.value = "";
-            }
+            preview.value = (grandTotal > 0) ? `Разом: ${grandTotal.toFixed(2)} грн` : "";
         }
 
+        // ПРОВЕДЕННЯ ЧЕКА (МУЛЬТИ-ПОЗИЦІЇ)
         function sellItem() {
-            let item = document.getElementById('sell-item').value;
-            let qty = parseFloat(document.getElementById('sell-qty').value);
-            let pricePerKg = parseFloat(document.getElementById('sell-price').value);
+            let rows = document.querySelectorAll('.sale-item-row');
+            let itemsToSell = [];
 
-            if (!item || isNaN(qty) || isNaN(pricePerKg) || inventory[item].kg < qty) {
-                return alert("Помилка даних або недостатньо товару на складі!");
+            // Перевіряємо кожен рядок
+            for (let r of rows) {
+                let item = r.querySelector('.sell-item').value;
+                let qty = parseFloat(r.querySelector('.sell-qty').value);
+                let pricePerKg = parseFloat(r.querySelector('.sell-price').value);
+
+                if (!item || isNaN(qty) || isNaN(pricePerKg) || qty <= 0) {
+                    return alert("Будь ласка, оберіть товар та вкажіть вагу для кожної позиції!");
+                }
+                if (!inventory[item] || inventory[item].kg < qty) {
+                    return alert(`На складі недостатньо товару: ${item.toUpperCase()} (залишок: ${inventory[item] ? inventory[item].kg : 0} кг)!`);
+                }
+
+                itemsToSell.push({ item, qty, pricePerKg, totalSum: qty * pricePerKg });
             }
 
-            let totalSum = qty * pricePerKg;
-            inventory[item].kg -= qty;
+            if (itemsToSell.length === 0) return;
 
             let date = new Date().toLocaleString("uk-UA");
             let currentSeller = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Невідомий';
-            let payType = document.getElementById('sell-pay-type').value; // зчитуємо тип оплати
+            let payType = document.getElementById('sell-pay-type').value;
+            
+            // Єдиний номер чека для всіх товарів у цій покупці
+            let checkId = 'ЧЕК-' + Date.now().toString().slice(-5);
 
-            history.push({ 
-                item: item, 
-                qty: qty, 
-                pricePerKg: pricePerKg, 
-                totalSum: totalSum, 
-                payType: payType, // зберігаємо
-                date: date,
-                seller: currentSeller
+            itemsToSell.forEach(pos => {
+                inventory[pos.item].kg -= pos.qty;
+                
+                history.push({
+                    checkId: checkId,
+                    item: pos.item,
+                    qty: pos.qty,
+                    pricePerKg: pos.pricePerKg,
+                    totalSum: pos.totalSum,
+                    payType: payType,
+                    date: date,
+                    seller: currentSeller
+                });
+
+                sendToGoogle({
+                    type: "sale",
+                    date: date,
+                    item: pos.item,
+                    qty: pos.qty,
+                    pricePerKg: pos.pricePerKg,
+                    totalSum: pos.totalSum.toFixed(2),
+                    payType: payType,
+                    seller: currentSeller
+                });
             });
 
-            sendToGoogle({ 
-                type: "sale", 
-                date: date, 
-                item: item, 
-                qty: qty, 
-                pricePerKg: pricePerKg, 
-                totalSum: totalSum.toFixed(2),
-                payType: payType, // відправляємо в Google
-                seller: currentSeller
-            });
             sendToGoogle({ type: "sync_stock", inventory: inventory });
 
-            document.getElementById('sell-qty').value = "";
-            document.getElementById('sell-price').value = "";
-            document.getElementById('sell-rec-price').value = "";
-            document.getElementById('sell-total-preview').value = ""; // очищаємо поле разом
+            // Скидаємо чек до одного початкового рядка
+            let container = document.getElementById('sale-rows-container');
+            container.innerHTML = `
+                <div class="sale-item-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                    <select class="sell-item" onchange="onSelectRowItem(this)" style="min-width: 160px;"></select>
+                    <input type="text" class="sell-rec-price" placeholder="Рек. ціна" readonly 
+                           style="background: #e8e8e4; width: 125px; cursor: not-allowed; font-weight: 600; color: #1b4332;">
+                    <input type="number" class="sell-qty" placeholder="Кг" oninput="calcSaleTotals()" style="width: 90px;">
+                    <input type="number" class="sell-price" placeholder="Ціна/кг" oninput="calcSaleTotals()" style="width: 120px;">
+                    <input type="text" class="sell-row-total" placeholder="0.00 грн" readonly 
+                           style="background: #fbfbf9; width: 110px; cursor: not-allowed; font-weight: 700; color: #333;">
+                </div>
+            `;
+            fillItemOptions(container.querySelector('.sell-item'));
+            document.getElementById('sell-total-preview').value = "";
+            
             updateUI();
         }
-
         function deleteItem(item) {
             if (confirm(`Видалити ${item.toUpperCase()} зі складу?`)) { 
                 delete inventory[item]; 
