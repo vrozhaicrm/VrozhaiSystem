@@ -338,17 +338,31 @@
         <div class="section-title">Оформлення продажу</div>
         
         <!-- ПАНЕЛЬ ВВЕДЕННЯ ПРОДАЖУ -->
-        <div class="filter-bar" style="gap: 10px;">
-            <select id="sell-item" onchange="onSelectSellItem()" style="min-width: 160px;"></select>
+        <div class="filter-bar" style="gap: 10px; flex-wrap: wrap;">
+            <select id="sell-item" onchange="onSelectSellItem()" style="min-width: 150px;"></select>
             
-            <!-- НЕРЕДАГОВАНА ПІДКАЗКА РЕКОМЕНДОВАНОЇ ЦІНИ -->
+            <!-- Рекомендована ціна -->
             <input type="text" id="sell-rec-price" placeholder="Рек. ціна: -" readonly 
-                   style="background: #e8e8e4; width: 140px; cursor: not-allowed; font-weight: 600; color: #1b4332;" 
-                   title="Рекомендована ціна з завозу (тільки для перегляду)">
+                   style="background: #e8e8e4; width: 130px; cursor: not-allowed; font-weight: 600; color: #1b4332;" 
+                   title="Рекомендована ціна з завозу">
 
-            <input type="number" id="sell-qty" placeholder="Кг" style="width: 110px;">
-            <input type="number" id="sell-price" placeholder="Ціна за 1 кг (грн)" style="width: 160px;">
-            <button class="primary-btn" onclick="sellItem()">💳 Продати</button>
+            <!-- Вага та ціна з миттєвим перерахунком (oninput) -->
+            <input type="number" id="sell-qty" placeholder="Кг" oninput="calcSellTotal()" style="width: 95px;">
+            <input type="number" id="sell-price" placeholder="Ціна за 1 кг" oninput="calcSellTotal()" style="width: 130px;">
+            
+            <!-- НЕЗАПОВНЮВАНЕ ПОЛЕ РАЗОМ ДО СПЛАТИ -->
+            <input type="text" id="sell-total-preview" placeholder="Разом: 0 грн" readonly 
+                   style="background: #e8f5e9; width: 150px; cursor: not-allowed; font-weight: 800; color: #006442; border: 1.5px solid #81c784;" 
+                   title="Сума до сплати (рахується автоматично)">
+
+            <!-- ТИП ОПЛАТИ (3 варіанти) -->
+            <select id="sell-pay-type" style="min-width: 130px; font-weight: 500;">
+                <option value="Готівка">💵 Готівка</option>
+                <option value="На карту">💳 На карту</option>
+                <option value="Термінал">📟 Термінал</option>
+            </select>
+
+            <button class="primary-btn" onclick="sellItem()">Продати</button>
         </div>
 
         <div class="section-title" style="margin-top: 25px;">Історія продажів</div>
@@ -359,7 +373,16 @@
         <div class="table-card">
             <table>
                 <thead>
-                    <tr><th>Товар</th><th>Вага</th><th>Ціна за 1 кг</th><th>Сума</th><th>Час</th><th>Продавець</th><th>Дії</th></tr>
+                    <tr>
+                        <th>Товар</th>
+                        <th>Вага</th>
+                        <th>Ціна за 1 кг</th>
+                        <th>Сума</th>
+                        <th>Оплата</th>
+                        <th>Час</th>
+                        <th>Продавець</th>
+                        <th>Дії</th>
+                    </tr>
                 </thead>
                 <tbody id="recent-sales-list"></tbody>
             </table>
@@ -660,12 +683,15 @@
                 .map((h, index) => {
                     let realIndex = history.length - 1 - index;
                     let sellerName = h.seller ? `👤 ${h.seller}` : '-';
+                let payment = h.payType || '💵 Готівка';
+                
                 return `<tr>
-                    <td>${h.item.toUpperCase()}</td>
+                    <td><b>${h.item.toUpperCase()}</b></td>
                     <td>${h.qty} кг</td>
                     <td>${(h.pricePerKg || 0).toFixed(2)} грн</td>
-                    <td>${(h.totalSum || 0).toFixed(2)} грн</td>
-                    <td>${h.date}</td>
+                    <td style="font-weight: 700; color: #1b4332;">${(h.totalSum || 0).toFixed(2)} грн</td>
+                    <td><span style="background: #f0f0ec; padding: 3px 8px; border-radius: 6px; font-size: 13px;">${payment}</span></td>
+                    <td><small style="color: #777;">${h.date}</small></td>
                     <td><b style="color: #1b4332;">${sellerName}</b></td>
                     <td>
                         <button onclick="editSale(${realIndex})">Ред.</button>
@@ -722,12 +748,25 @@
             if (item && inventory[item]) {
                 let recPrice = inventory[item].sellPrice || inventory[item].buyPrice || 0;
                 recInput.value = `Рек: ${recPrice.toFixed(2)} грн`;
-                
-                // Автоматично підставляємо цю ціну у поле продажу (продавець може змінити за потреби)
                 priceInput.value = recPrice.toFixed(2);
+                calcSellTotal(); // одразу перераховуємо суму, якщо вага вже була введена
             } else {
                 recInput.value = "";
                 priceInput.value = "";
+                calcSellTotal();
+            }
+        }
+
+        // АВТОМАТИЧНИЙ ПІДРАХУНОК СУМИ ДО СПЛАТИ
+        function calcSellTotal() {
+            let qty = parseFloat(document.getElementById('sell-qty').value) || 0;
+            let price = parseFloat(document.getElementById('sell-price').value) || 0;
+            let preview = document.getElementById('sell-total-preview');
+            
+            if (qty > 0 && price > 0) {
+                preview.value = `Разом: ${(qty * price).toFixed(2)} грн`;
+            } else {
+                preview.value = "";
             }
         }
 
@@ -745,12 +784,14 @@
 
             let date = new Date().toLocaleString("uk-UA");
             let currentSeller = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Невідомий';
+            let payType = document.getElementById('sell-pay-type').value; // зчитуємо тип оплати
 
             history.push({ 
                 item: item, 
                 qty: qty, 
                 pricePerKg: pricePerKg, 
                 totalSum: totalSum, 
+                payType: payType, // зберігаємо
                 date: date,
                 seller: currentSeller
             });
@@ -762,13 +803,15 @@
                 qty: qty, 
                 pricePerKg: pricePerKg, 
                 totalSum: totalSum.toFixed(2),
+                payType: payType, // відправляємо в Google
                 seller: currentSeller
             });
             sendToGoogle({ type: "sync_stock", inventory: inventory });
 
             document.getElementById('sell-qty').value = "";
             document.getElementById('sell-price').value = "";
-            document.getElementById('sell-rec-price').value = ""; // очищаємо підказку
+            document.getElementById('sell-rec-price').value = "";
+            document.getElementById('sell-total-preview').value = ""; // очищаємо поле разом
             updateUI();
         }
 
