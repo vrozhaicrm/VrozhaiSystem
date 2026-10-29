@@ -465,13 +465,76 @@
             </table>
         </div>
     </div> <!-- кінець бухгалтерії -->
-            <!-- ОСОБИСТИЙ КАБІНЕТ (поки порожній) -->
+            <!-- ОСОБИСТИЙ КАБІНЕТ -->
     <div id="profile" class="tab">
         <div class="section-title">Особистий кабінет</div>
-        <div class="table-card" style="padding: 40px; text-align: center; color: #666;">
-            <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
-            <h3 style="margin: 0; color: #1b4332;">Особистий кабінет користувача</h3>
-            <p style="font-size: 14px; margin-top: 8px;">Цей розділ наразі в розробці.</p>
+
+        <!-- КАРТКА КОРИСТУВАЧА -->
+        <div class="table-card" style="padding: 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 25px;">
+            <div class="avatar-circle" style="width: 50px; height: 50px;"></div>
+            <div>
+                <h3 style="margin: 0; color: #1b4332; font-size: 18px;" id="profile-user-title">Користувач</h3>
+                <span style="font-size: 14px; color: #666;" id="profile-role-title">Роль у системі</span>
+            </div>
+        </div>
+
+        <!-- БЛОК АНАЛІТИКИ: ДОСТУПНИЙ ТІЛЬКИ ДЛЯ АДМІНІСТРАТОРА -->
+        <div id="admin-analytics-block" style="display: none;">
+            <div class="section-title" style="margin-top: 10px;">📊 Аналітика чеків та продажів</div>
+            
+            <!-- ПАНЕЛЬ ВИБОРУ ПЕРІОДУ -->
+            <div class="filter-bar">
+                <label style="font-weight: 500;">Період розрахунку:</label>
+                <select id="avg-filter-mode" onchange="updateAvgFilterInput()">
+                    <option value="day">День</option>
+                    <option value="month">Місяць</option>
+                    <option value="year">Рік</option>
+                    <option value="all">За весь час</option>
+                </select>
+                
+                <span id="avg-filter-container">
+                    <input type="date" id="avg-filter-value" onchange="calcAverageCheck()">
+                </span>
+            </div>
+
+            <!-- 3 КАРТКИ З СЕРЕДНІМ ЧЕКОМ -->
+            <div class="kpi-row">
+                <!-- СЕРЕДНІЙ ЧЕК -->
+                <div class="kpi-card kpi-profit" style="border-width: 2.5px;">
+                    <div class="kpi-header">
+                        <span class="kpi-icon icon-profit">🧾</span>
+                        <span>Середній чек</span>
+                    </div>
+                    <div class="kpi-value" style="color: #006442;"><span id="avg-check-value">0.00</span> грн</div>
+                </div>
+
+                <!-- КІЛЬКІСТЬ ЧЕКІВ -->
+                <div class="kpi-card kpi-income">
+                    <div class="kpi-header">
+                        <span class="kpi-icon icon-income">🛍️</span>
+                        <span>Кількість покупок (чеків)</span>
+                    </div>
+                    <div class="kpi-value"><span id="total-checks-count">0</span></div>
+                </div>
+
+                <!-- ЗАГАЛЬНА ВИРУЧКА -->
+                <div class="kpi-card kpi-income">
+                    <div class="kpi-header">
+                        <span class="kpi-icon icon-income">💰</span>
+                        <span>Каса за вибраний період</span>
+                    </div>
+                    <div class="kpi-value"><span id="avg-period-revenue">0.00</span> грн</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ПОВІДОМЛЕННЯ ДЛЯ ЗВИЧАЙНОГО ПРОДАВЦЯ (SELLER) -->
+        <div id="seller-restricted-block" style="display: none;">
+            <div class="table-card" style="padding: 35px; text-align: center; color: #777;">
+                <div style="font-size: 36px; margin-bottom: 8px;">🔒</div>
+                <h4 style="margin: 0; color: #333;">Фінансова аналітика обмежена</h4>
+                <p style="font-size: 14px; margin-top: 6px;">Розрахунок середнього чека та каси доступний лише адміністраторам магазину.</p>
+            </div>
         </div>
     </div>
 </div> <!-- кінець app-content -->
@@ -642,10 +705,94 @@
             }
         }
 
-        // ВІДКРИТТЯ ОСОБИСТОГО КАБІНЕТУ
+        // ВІДКРИТТЯ ОСОБИСТОГО КАБІНЕТУ З РОЗПОДІЛОМ ПРАВ
         function openProfile() {
             document.querySelectorAll('.pill-nav button').forEach(b => b.classList.remove('active'));
             showTab('profile');
+
+            let role = sessionStorage.getItem('userRole') || localStorage.getItem('userRole') || 'seller';
+            let name = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Користувач';
+
+            document.getElementById('profile-user-title').innerText = name;
+            document.getElementById('profile-role-title').innerText = (role === 'admin') ? '👑 Адміністратор (повний доступ)' : '🛒 Продавець (обмежений доступ)';
+
+            let adminBlock = document.getElementById('admin-analytics-block');
+            let sellerBlock = document.getElementById('seller-restricted-block');
+
+            // Якщо адмін — показуємо аналітику, якщо продавець — ховаємо
+            if (role === 'admin') {
+                adminBlock.style.display = 'block';
+                sellerBlock.style.display = 'none';
+                updateAvgFilterInput();
+            } else {
+                adminBlock.style.display = 'none';
+                sellerBlock.style.display = 'block';
+            }
+        }
+
+        // ПЕРЕМИКАННЯ РЕЖИМІВ ДЛЯ СЕРЕДНЬОГО ЧЕКА
+        function updateAvgFilterInput() {
+            let mode = document.getElementById('avg-filter-mode').value;
+            let container = document.getElementById('avg-filter-container');
+            let now = new Date();
+            let curYear = now.getFullYear();
+            let curMonth = `${curYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            let curDay = `${curMonth}-${String(now.getDate()).padStart(2, '0')}`;
+
+            if (mode === 'day') {
+                container.innerHTML = `<input type="date" id="avg-filter-value" value="${curDay}" onchange="calcAverageCheck()">`;
+            } else if (mode === 'month') {
+                container.innerHTML = `<input type="month" id="avg-filter-value" value="${curMonth}" onchange="calcAverageCheck()">`;
+            } else if (mode === 'year') {
+                container.innerHTML = `<input type="number" id="avg-filter-value" value="${curYear}" min="2020" max="2099" oninput="calcAverageCheck()">`;
+            } else if (mode === 'all') {
+                container.innerHTML = `<span style="font-size: 14px; color: #555; font-weight: 500;">Вся історія</span>`;
+            }
+
+            calcAverageCheck();
+        }
+
+        // РОЗРАХУНОК СЕРЕДНЬОГО ЧЕКА
+        function calcAverageCheck() {
+            let mode = document.getElementById('avg-filter-mode').value;
+            let inputEl = document.getElementById('avg-filter-value');
+            let val = inputEl ? String(inputEl.value).trim() : "";
+
+            let checksMap = {}; // унікальні чеки: { checkId: totalSum }
+            let totalRevenue = 0;
+
+            history.forEach((h, index) => {
+                // Якщо за весь час — беремо всі
+                let match = (mode === 'all');
+
+                if (!match) {
+                    let p = parseDateHelper(h.date);
+                    if (p && val) {
+                        if (mode === 'day' && p.yyyy_mm_dd === val) match = true;
+                        else if (mode === 'month' && p.yyyy_mm === val) match = true;
+                        else if (mode === 'year' && p.year === val) match = true;
+                    }
+                }
+
+                if (match) {
+                    // Єдиний ідентифікатор покупки (checkId або дата+продавець для старих записів)
+                    let checkKey = h.checkId || (h.date + '_' + (h.seller || 'admin') + '_' + (h.payType || ''));
+                    let lineSum = parseFloat(h.totalSum) || (parseFloat(h.qty) * parseFloat(h.pricePerKg)) || 0;
+
+                    if (!checksMap[checkKey]) {
+                        checksMap[checkKey] = 0;
+                    }
+                    checksMap[checkKey] += lineSum;
+                    totalRevenue += lineSum;
+                }
+            });
+
+            let totalChecks = Object.keys(checksMap).length;
+            let avgCheck = (totalChecks > 0) ? (totalRevenue / totalChecks) : 0;
+
+            document.getElementById('avg-check-value').innerText = avgCheck.toFixed(2);
+            document.getElementById('total-checks-count').innerText = totalChecks;
+            document.getElementById('avg-period-revenue').innerText = totalRevenue.toFixed(2);
         }
 
         function updateUI() {
