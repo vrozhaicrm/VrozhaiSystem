@@ -74,10 +74,16 @@
             border: 1px solid #ebebeb;
         }
         .avatar-circle {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             border-radius: 50%;
-            background: #dcdcd7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            user-select: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
         }
         .profile-info {
             display: flex;
@@ -255,7 +261,7 @@
 
                 <div class="profile-card">
                 <div onclick="openProfile()" style="display: flex; align-items: center; gap: 12px; cursor: pointer;" title="Перейти в особистий кабінет">
-                    <div class="avatar-circle"></div>
+                    <div class="avatar-circle" id="user-avatar-badge">👤</div>
                     <div class="profile-info">
                         <span class="profile-name" id="user-name-display">Користувач</span>
                         <span class="profile-role" id="user-role-display">(Роль)</span>
@@ -519,7 +525,7 @@
 
         <!-- КАРТКА КОРИСТУВАЧА -->
         <div class="table-card" style="padding: 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 25px;">
-            <div class="avatar-circle" style="width: 50px; height: 50px;"></div>
+            <div class="avatar-circle" id="profile-avatar-badge" style="width: 52px; height: 52px; font-size: 26px;">👤</div>
             <div>
                 <h3 style="margin: 0; color: #1b4332; font-size: 18px;" id="profile-user-title">Користувач</h3>
                 <span style="font-size: 14px; color: #666;" id="profile-role-title">Роль у системі</span>
@@ -634,6 +640,19 @@
                 
                 document.getElementById('user-name-display').innerText = name || 'Користувач';
                 document.getElementById('user-role-display').innerText = (role === 'admin') ? '(Адміністратор)' : '(Продавець)';
+
+                // --- ДОДАЄМО ВСТАНОВЛЕННЯ ІКОНКИ В ШАПЦІ: ---
+                let avatarEl = document.getElementById('user-avatar-badge');
+                if (avatarEl) {
+                    if (role === 'admin') {
+                        avatarEl.innerText = "👑";
+                        avatarEl.style.background = "#fff3e0"; // теплий золотистий фон
+                    } else {
+                        avatarEl.innerText = "🛒";
+                        avatarEl.style.background = "#e8f5e9"; // м'який зелений фон
+                    }
+                }
+                // ---------------------------------------------
 
                 // ПРИ ВХОДІ ОДРАЗУ ПІДТЯГУЄМО СВІЖІ ДАНІ З ХМАРИ:
                 loadFromGoogle();
@@ -767,6 +786,19 @@
 
             document.getElementById('profile-user-title').innerText = name;
             document.getElementById('profile-role-title').innerText = (role === 'admin') ? '👑 Адміністратор (повний доступ)' : '🛒 Продавець (обмежений доступ)';
+
+            // --- ДОДАЄМО ВСТАНОВЛЕННЯ ВЕЛИКОЇ ІКОНКИ В КАБІНЕТІ: ---
+            let profAvatarEl = document.getElementById('profile-avatar-badge');
+            if (profAvatarEl) {
+                if (role === 'admin') {
+                    profAvatarEl.innerText = "👑";
+                    profAvatarEl.style.background = "#fff3e0"; // теплий золотистий фон
+                } else {
+                    profAvatarEl.innerText = "🛒";
+                    profAvatarEl.style.background = "#e8f5e9"; // м'який зелений фон
+                }
+            }
+            // --------------------------------------------------------
 
             let adminBlock = document.getElementById('admin-analytics-block');
             let sellerBlock = document.getElementById('seller-restricted-block');
