@@ -844,7 +844,7 @@
                         <td>${parseFloat(s.price).toFixed(2)} грн</td>
                         <td><b>${sellP}</b></td>
                         <td>${(s.qty * s.price).toFixed(2)} грн</td>
-                        <td><small style="color: #777;">${s.date}</small></td>
+                        <td><small style="color: #555; font-weight: 500;">${formatDateTime(s.date)}</small></td>
                         <td>
                             <button onclick="editSupply(${realIndex})">Ред.</button>
                             <button onclick="deleteSupply(${realIndex})" style="color:red">Видалити</button>
@@ -870,7 +870,7 @@
                     <td>${(h.pricePerKg || 0).toFixed(2)} грн</td>
                     <td style="font-weight: 700; color: #1b4332;">${(h.totalSum || 0).toFixed(2)} грн</td>
                     <td><span style="background: #f0f0ec; padding: 3px 8px; border-radius: 6px; font-size: 13px;">${payment}</span></td>
-                    <td><small style="color: #777;">${h.date}</small></td>
+                    <td><small style="color: #555; font-weight: 500;">${formatDateTime(h.date)}</small></td>
                     <td><b style="color: #1b4332;">${sellerName}</b></td>
                     <td>
                         <button onclick="editSale(${realIndex})">Ред.</button>
@@ -904,7 +904,7 @@
             inventory[item].buyPrice = price;
             inventory[item].sellPrice = sellPrice; // зберігаємо рекомендовану ціну на складі
 
-            let date = new Date().toLocaleString("uk-UA");
+            let date = formatDateTime(new Date());
             supplies.push({ date: date, item, qty, price, sellPrice });
 
             sendToGoogle({ type: "supply", date: date, item: item, qty: qty, price: price, sellPrice: sellPrice, total: (qty * price).toFixed(2) });
@@ -1014,7 +1014,7 @@
 
             if (itemsToSell.length === 0) return;
 
-            let date = new Date().toLocaleString("uk-UA");
+            let date = formatDateTime(new Date());
             let currentSeller = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Невідомий';
             let payType = document.getElementById('sell-pay-type').value;
             
@@ -1172,6 +1172,35 @@
             }
         }
 
+        // УНІВЕРСАЛЬНЕ ФОРМАТУВАННЯ ДАТИ (ДД.ММ.РРРР ГГ:ХХ)
+        function formatDateTime(dateInput) {
+            if (!dateInput) return "";
+            let s = String(dateInput).trim();
+
+            // Якщо дата вже з крапками: витягуємо день, місяць, рік, години і хвилини
+            let match = s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})[,\s]*(\d{1,2}:\d{2})?/);
+            if (match) {
+                let d = match[1].padStart(2, '0');
+                let m = match[2].padStart(2, '0');
+                let y = match[3];
+                let time = match[4] || "";
+                return time ? `${d}.${m}.${y} ${time}` : `${d}.${m}.${y}`;
+            }
+
+            // Якщо дата системна (JS Date або з Google Таблиці)
+            let parsed = new Date(dateInput);
+            if (!isNaN(parsed.getTime())) {
+                let d = String(parsed.getDate()).padStart(2, '0');
+                let m = String(parsed.getMonth() + 1).padStart(2, '0');
+                let y = parsed.getFullYear();
+                let h = String(parsed.getHours()).padStart(2, '0');
+                let min = String(parsed.getMinutes()).padStart(2, '0');
+                return `${d}.${m}.${y} ${h}:${min}`;
+            }
+
+            return s;
+        }
+
         // РОЗУМНЕ РОЗПІЗНАВАННЯ ДАТИ
         function parseDateHelper(dateStr) {
             if (!dateStr) return null;
@@ -1241,7 +1270,7 @@
                         <td>${currentQty} кг</td>
                         <td>${(parseFloat(h.pricePerKg) || 0).toFixed(2)} грн</td>
                         <td style="font-weight: 600; color: #1b4332;">${currentSaleSum.toFixed(2)} грн</td>
-                        <td><small style="color: #777;">${h.date}</small></td>
+                        <td><small style="color: #555; font-weight: 500;">${formatDateTime(h.date)}</small></td>
                     </tr>`;
                 }
             });
