@@ -254,10 +254,13 @@
             </nav>
 
             <div class="profile-card">
-                <div class="avatar-circle"></div>
-                <div class="profile-info">
-                    <span class="profile-name" id="user-name-display">Користувач</span>
-                    <span class="profile-role" id="user-role-display">(Роль)</span>
+                <div class="profile-card">
+                <div onclick="openProfile()" style="display: flex; align-items: center; gap: 12px; cursor: pointer;" title="Перейти в особистий кабінет">
+                    <div class="avatar-circle"></div>
+                    <div class="profile-info">
+                        <span class="profile-name" id="user-name-display">Користувач</span>
+                        <span class="profile-role" id="user-role-display">(Роль)</span>
+                    </div>
                 </div>
                 <button class="logout-link" onclick="logout()">Вийти</button>
             </div>
@@ -446,6 +449,15 @@
             </table>
         </div>
     </div> <!-- кінець бухгалтерії -->
+            <!-- ОСОБИСТИЙ КАБІНЕТ (поки порожній) -->
+    <div id="profile" class="tab">
+        <div class="section-title">Особистий кабінет</div>
+        <div class="table-card" style="padding: 40px; text-align: center; color: #666;">
+            <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
+            <h3 style="margin: 0; color: #1b4332;">Особистий кабінет користувача</h3>
+            <p style="font-size: 14px; margin-top: 8px;">Цей розділ наразі в розробці.</p>
+        </div>
+    </div>
 </div> <!-- кінець app-content -->
 
     <script>
@@ -612,6 +624,12 @@
             if (tabId === 'accounting') {
                 updateFilterInput();
             }
+        }
+
+        // ВІДКРИТТЯ ОСОБИСТОГО КАБІНЕТУ
+        function openProfile() {
+            document.querySelectorAll('.pill-nav button').forEach(b => b.classList.remove('active'));
+            showTab('profile');
         }
 
         function updateUI() {
