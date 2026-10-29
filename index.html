@@ -279,7 +279,21 @@
         </div>
 
         <div class="filter-bar">
-            <input type="text" id="search-stock" placeholder="🔍 Пошук товару на складі..." oninput="updateUI()" style="width: 100%; max-width: 320px;">
+            <!-- 1. Фільтр за товаром -->
+            <label style="font-weight: 500;">Товар:</label>
+            <select id="filter-stock-item" onchange="updateUI()" style="min-width: 160px;">
+                <option value="">Всі товари</option>
+            </select>
+
+            <!-- 2. Фільтр за датою надходження -->
+            <label style="font-weight: 500; margin-left: 10px;">Дата завозу:</label>
+            <select id="filter-stock-date-mode" onchange="updateStockDateInput()">
+                <option value="all">Всі дати</option>
+                <option value="day">День</option>
+                <option value="month">Місяць</option>
+                <option value="year">Рік</option>
+            </select>
+            <span id="filter-stock-date-container"></span>
         </div>
 
         <div class="table-card">
@@ -314,7 +328,21 @@
         
         <div class="section-title" style="margin-top: 25px;">Історія завозів</div>
         <div class="filter-bar">
-            <input type="text" id="search-supply" placeholder="🔍 Пошук по завозах..." oninput="updateUI()" style="width: 100%; max-width: 320px;">
+            <!-- 1. Фільтр за товаром -->
+            <label style="font-weight: 500;">Товар:</label>
+            <select id="filter-supply-item" onchange="updateUI()" style="min-width: 160px;">
+                <option value="">Всі товари</option>
+            </select>
+
+            <!-- 2. Фільтр за датою -->
+            <label style="font-weight: 500; margin-left: 10px;">Період:</label>
+            <select id="filter-supply-date-mode" onchange="updateSupplyDateInput()">
+                <option value="all">Всі дати</option>
+                <option value="day">День</option>
+                <option value="month">Місяць</option>
+                <option value="year">Рік</option>
+            </select>
+            <span id="filter-supply-date-container"></span>
         </div>
 
         <div class="table-card">
@@ -384,17 +412,29 @@
             </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-            <div class="section-title" style="margin: 0;" id="sales-history-title">Історія продажів (за сьогодні)</div>
-            <div style="display: flex; gap: 6px;">
-                <button type="button" class="action-btn" id="btn-sales-today" onclick="setSalesViewMode('today')" 
-                        style="background: #006442; color: #ffffff; font-weight: 600; border-color: #006442;">Сьогодні</button>
-                <button type="button" class="action-btn" id="btn-sales-all" onclick="setSalesViewMode('all')" 
-                        style="background: #ffffff; color: #444;">Вся історія</button>
-            </div>
-        </div>
+        <div class="section-title" style="margin-top: 25px; margin-bottom: 12px;">Історія продажів</div>
         <div class="filter-bar">
-            <input type="text" id="search-sales" placeholder="🔍 Пошук по продажах..." oninput="updateUI()" style="width: 100%; max-width: 320px;">
+            <!-- 1. Фільтр за товаром -->
+            <label style="font-weight: 500;">Товар:</label>
+            <select id="filter-sales-item" onchange="updateUI()" style="min-width: 150px;">
+                <option value="">Всі товари</option>
+            </select>
+
+            <!-- 2. Фільтр за датою (за замовчуванням стоїть День - сьогодні) -->
+            <label style="font-weight: 500; margin-left: 5px;">Період:</label>
+            <select id="filter-sales-date-mode" onchange="updateSalesDateInput()">
+                <option value="day" selected>День (сьогодні)</option>
+                <option value="month">Місяць</option>
+                <option value="year">Рік</option>
+                <option value="all">Вся історія</option>
+            </select>
+            <span id="filter-sales-date-container"></span>
+
+            <!-- 3. Фільтр за продавцем -->
+            <label style="font-weight: 500; margin-left: 5px;">Продавець:</label>
+            <select id="filter-sales-seller" onchange="updateUI()" style="min-width: 140px;">
+                <option value="">Всі продавці</option>
+            </select>
         </div>
 
         <div class="table-card">
@@ -597,6 +637,9 @@
 
                 // ПРИ ВХОДІ ОДРАЗУ ПІДТЯГУЄМО СВІЖІ ДАНІ З ХМАРИ:
                 loadFromGoogle();
+                updateStockDateInput();
+                updateSupplyDateInput();
+                updateSalesDateInput();
                 updateUI();
             } else {
                 document.getElementById('login-overlay').style.display = 'flex';
@@ -823,26 +866,104 @@
             updateUI();
         }
 
+        // ГЕНЕРАТОРИ ІНПУТІВ ДАТИ ДЛЯ ФІЛЬТРІВ
+        function createDateInputHTML(mode, onchangeFn) {
+            let now = new Date();
+            let curYear = now.getFullYear();
+            let curMonth = `${curYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            let curDay = `${curMonth}-${String(now.getDate()).padStart(2, '0')}`;
+
+            if (mode === 'day') return `<input type="date" value="${curDay}" onchange="${onchangeFn}">`;
+            if (mode === 'month') return `<input type="month" value="${curMonth}" onchange="${onchangeFn}">`;
+            if (mode === 'year') return `<input type="number" value="${curYear}" min="2020" max="2099" oninput="${onchangeFn}">`;
+            return `<span style="font-size: 13px; color: #777;">Вся історія</span>`;
+        }
+
+        function updateStockDateInput() {
+            let mode = document.getElementById('filter-stock-date-mode').value;
+            document.getElementById('filter-stock-date-container').innerHTML = createDateInputHTML(mode, 'updateUI()');
+            updateUI();
+        }
+
+        function updateSupplyDateInput() {
+            let mode = document.getElementById('filter-supply-date-mode').value;
+            document.getElementById('filter-supply-date-container').innerHTML = createDateInputHTML(mode, 'updateUI()');
+            updateUI();
+        }
+
+        function updateSalesDateInput() {
+            let mode = document.getElementById('filter-sales-date-mode').value;
+            document.getElementById('filter-sales-date-container').innerHTML = createDateInputHTML(mode, 'updateUI()');
+            updateUI();
+        }
+
+        // НАПОВНЕННЯ ВИПАДАЮЧИХ СПИСКІВ ДЛЯ ФІЛЬТРІВ
+        function populateFilterDropdowns() {
+            // 1. Товари для всіх трьох фільтрів
+            let itemFilters = ['filter-stock-item', 'filter-supply-item', 'filter-sales-item'];
+            itemFilters.forEach(id => {
+                let el = document.getElementById(id);
+                if (!el) return;
+                let cur = el.value;
+                el.innerHTML = '<option value="">Всі товари</option>';
+                for (let item in inventory) {
+                    el.innerHTML += `<option value="${item}">${item.toUpperCase()}</option>`;
+                }
+                if (cur) el.value = cur;
+            });
+
+            // 2. Продавці для фільтра продажів
+            let sellerEl = document.getElementById('filter-sales-seller');
+            if (sellerEl) {
+                let curSeller = sellerEl.value;
+                let sellers = new Set();
+                history.forEach(h => { if (h.seller && h.seller !== '-') sellers.add(h.seller); });
+                sellerEl.innerHTML = '<option value="">Всі продавці</option>';
+                sellers.forEach(s => {
+                    sellerEl.innerHTML += `<option value="${s}">👤 ${s}</option>`;
+                });
+                if (curSeller) sellerEl.value = curSeller;
+            }
+        }
+
         function updateUI() {
-            // 1. Склад
-            let list = document.getElementById('stock-list');
-            list.innerHTML = "";
+            // Наповнюємо списки фільтрів актуальними товарами та продавцями
+            populateFilterDropdowns();
             document.querySelectorAll('.sell-item').forEach(sel => fillItemOptions(sel));
 
+            // ================= 1. СКЛАД =================
+            let list = document.getElementById('stock-list');
+            list.innerHTML = "";
             let totalWarehouseWorth = 0;
-            let searchStock = document.getElementById('search-stock').value.toLowerCase();
+
+            let filterStockItem = document.getElementById('filter-stock-item') ? document.getElementById('filter-stock-item').value : "";
+            let stockDateMode = document.getElementById('filter-stock-date-mode') ? document.getElementById('filter-stock-date-mode').value : "all";
+            let stockDateEl = document.querySelector('#filter-stock-date-container input');
+            let stockDateVal = stockDateEl ? String(stockDateEl.value).trim() : "";
 
             for (let item in inventory) {
                 let data = inventory[item];
                 let buyPrice = data.buyPrice || 0;
-                let sellPrice = data.sellPrice || buyPrice; // якщо рек. ціна не вказана, беремо закупку
+                let sellPrice = data.sellPrice || buyPrice;
                 let itemTotalWorth = (data.kg > 0) ? (data.kg * sellPrice) : 0;
-
                 totalWarehouseWorth += itemTotalWorth;
 
-                if (!item.includes(searchStock)) continue;
-                let colorStyle = data.kg < 5 ? "color: red; font-weight: bold;" : "";
+                // Фільтр за назвою товару
+                if (filterStockItem && item !== filterStockItem) continue;
 
+                // Фільтр за датою останнього завозу
+                if (stockDateMode !== 'all' && stockDateVal) {
+                    let lastSup = supplies.slice().reverse().find(s => s.item === item);
+                    if (lastSup) {
+                        let p = parseDateHelper(lastSup.date);
+                        if (!p) continue;
+                        if (stockDateMode === 'day' && p.yyyy_mm_dd !== stockDateVal) continue;
+                        if (stockDateMode === 'month' && p.yyyy_mm !== stockDateVal) continue;
+                        if (stockDateMode === 'year' && p.year !== stockDateVal) continue;
+                    }
+                }
+
+                let colorStyle = data.kg < 5 ? "color: red; font-weight: bold;" : "";
                 list.innerHTML += `<tr>
                     <td>${item.toUpperCase()}</td>
                     <td style="${colorStyle}">${data.kg} кг</td>
@@ -859,10 +980,26 @@
             let worthEl = document.getElementById('total-stock-worth');
             if (worthEl) worthEl.innerText = totalWarehouseWorth.toFixed(2);
 
-            // 2. Завіз
-            let searchSupply = document.getElementById('search-supply').value.toLowerCase();
+            // ================= 2. ЗАВІЗ =================
+            let filterSupplyItem = document.getElementById('filter-supply-item') ? document.getElementById('filter-supply-item').value : "";
+            let supplyDateMode = document.getElementById('filter-supply-date-mode') ? document.getElementById('filter-supply-date-mode').value : "all";
+            let supplyDateEl = document.querySelector('#filter-supply-date-container input');
+            let supplyDateVal = supplyDateEl ? String(supplyDateEl.value).trim() : "";
+
             document.getElementById('supply-list').innerHTML = supplies.slice().reverse()
-                .filter(s => s.item.toLowerCase().includes(searchSupply))
+                .filter(s => {
+                    // Фільтр товару
+                    if (filterSupplyItem && s.item !== filterSupplyItem) return false;
+                    // Фільтр дати
+                    if (supplyDateMode !== 'all' && supplyDateVal) {
+                        let p = parseDateHelper(s.date);
+                        if (!p) return false;
+                        if (supplyDateMode === 'day' && p.yyyy_mm_dd !== supplyDateVal) return false;
+                        if (supplyDateMode === 'month' && p.yyyy_mm !== supplyDateVal) return false;
+                        if (supplyDateMode === 'year' && p.year !== supplyDateVal) return false;
+                    }
+                    return true;
+                })
                 .map((s, index) => {
                     let realIndex = supplies.length - 1 - index;
                     let sellP = s.sellPrice ? `${parseFloat(s.sellPrice).toFixed(2)} грн` : '-';
@@ -881,52 +1018,49 @@
                 })
                 .join('');
 
-            // 3. Продажі
-            let searchSales = document.getElementById('search-sales').value.toLowerCase().trim();
-            let allReversed = history.slice().reverse();
+            // ================= 3. ПРОДАЖІ =================
+            let filterSalesItem = document.getElementById('filter-sales-item') ? document.getElementById('filter-sales-item').value : "";
+            let filterSalesSeller = document.getElementById('filter-sales-seller') ? document.getElementById('filter-sales-seller').value : "";
+            let salesDateMode = document.getElementById('filter-sales-date-mode') ? document.getElementById('filter-sales-date-mode').value : "day";
+            let salesDateEl = document.querySelector('#filter-sales-date-container input');
+            let salesDateVal = salesDateEl ? String(salesDateEl.value).trim() : "";
 
-            // Отримуємо сьогоднішню дату (РРРР-ММ-ДД)
-            let now = new Date();
-            let todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-            let filteredSales;
-
-            // Якщо продавець щось вписав у пошук — шукаємо по всій історії
-            if (searchSales) {
-                filteredSales = allReversed.filter(h => h.item.toLowerCase().includes(searchSales));
-            } 
-            // Якщо пошук порожній і стоїть режим "Сьогодні" — показуємо тільки за сьогодні
-            else if (salesViewMode === 'today') {
-                filteredSales = allReversed.filter(h => {
+            let filteredSales = history.slice().reverse().filter(h => {
+                // 1. Фільтр товару
+                if (filterSalesItem && h.item !== filterSalesItem) return false;
+                // 2. Фільтр продавця
+                if (filterSalesSeller && (!h.seller || h.seller.toLowerCase() !== filterSalesSeller.toLowerCase())) return false;
+                // 3. Фільтр дати
+                if (salesDateMode !== 'all' && salesDateVal) {
                     let p = parseDateHelper(h.date);
-                    return p && p.yyyy_mm_dd === todayYMD;
-                });
-            } 
-            // В іншому випадку показуємо всю історію
-            else {
-                filteredSales = allReversed;
-            }
+                    if (!p) return false;
+                    if (salesDateMode === 'day' && p.yyyy_mm_dd !== salesDateVal) return false;
+                    if (salesDateMode === 'month' && p.yyyy_mm !== salesDateVal) return false;
+                    if (salesDateMode === 'year' && p.year !== salesDateVal) return false;
+                }
+                return true;
+            });
             
             document.getElementById('recent-sales-list').innerHTML = filteredSales
                 .slice(0, salesLimit) 
                 .map((h, index) => {
                     let realIndex = history.length - 1 - index;
                     let sellerName = h.seller ? `👤 ${h.seller}` : '-';
-                let payment = h.payType || '💵 Готівка';
+                    let payment = h.payType || '💵 Готівка';
                 
-                return `<tr>
-                    <td><b>${h.item.toUpperCase()}</b></td>
-                    <td>${h.qty} кг</td>
-                    <td>${(h.pricePerKg || 0).toFixed(2)} грн</td>
-                    <td style="font-weight: 700; color: #1b4332;">${(h.totalSum || 0).toFixed(2)} грн</td>
-                    <td><span style="background: #f0f0ec; padding: 3px 8px; border-radius: 6px; font-size: 13px;">${payment}</span></td>
-                    <td><small style="color: #555; font-weight: 500;">${formatDateTime(h.date)}</small></td>
-                    <td><b style="color: #1b4332;">${sellerName}</b></td>
-                    <td>
-                        <button onclick="editSale(${realIndex})">Ред.</button>
-                        <button onclick="deleteSale(${realIndex})" style="color:red">Видалити</button>
-                    </td>
-                </tr>`;
+                    return `<tr>
+                        <td><b>${h.item.toUpperCase()}</b></td>
+                        <td>${h.qty} кг</td>
+                        <td>${(h.pricePerKg || 0).toFixed(2)} грн</td>
+                        <td style="font-weight: 700; color: #1b4332;">${(h.totalSum || 0).toFixed(2)} грн</td>
+                        <td><span style="background: #f0f0ec; padding: 3px 8px; border-radius: 6px; font-size: 13px;">${payment}</span></td>
+                        <td><small style="color: #555; font-weight: 500;">${formatDateTime(h.date)}</small></td>
+                        <td><b style="color: #1b4332;">${sellerName}</b></td>
+                        <td>
+                            <button onclick="editSale(${realIndex})">Ред.</button>
+                            <button onclick="deleteSale(${realIndex})" style="color:red">Видалити</button>
+                        </td>
+                    </tr>`;
                 })
                 .join('');
 
