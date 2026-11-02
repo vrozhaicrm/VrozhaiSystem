@@ -255,7 +255,7 @@
                 <button class="nav-btn active" onclick="switchTab(this, 'stock')">Склад</button>
                 <button class="nav-btn" onclick="switchTab(this, 'supply')">Завіз</button>
                 <button class="nav-btn" onclick="switchTab(this, 'sales')">Продажі</button>
-                <button class="nav-btn" onclick="switchTab(this, 'accounting')">Бухгалтерія</button>
+                <button class="nav-btn" onclick="switchTab(this, 'seller-tab')">Продавець</button>
                 <button class="nav-btn" onclick="loadFromGoogle(true)" title="Оновити з Google" style="color: #006442;">🔄 Хмара</button>
             </nav>
 
@@ -467,59 +467,16 @@
         </div>
     </div>
 
-    <!-- БУХГАЛТЕРІЯ -->
-    <div id="accounting" class="tab">
-        <div class="section-title">Разом за період</div>
+    <!-- ВКЛАДКА "ПРОДАВЕЦЬ" (заготовка для майбутніх підрахунків) -->
+    <div id="seller-tab" class="tab">
+        <div class="section-title">Розділ продавця</div>
+        <div class="table-card" style="padding: 40px; text-align: center; color: #666;">
+            <div style="font-size: 40px; margin-bottom: 10px;">🛒</div>
+            <h3 style="margin: 0; color: #1b4332;">Аналітика та підрахунки продавця</h3>
+            <p style="font-size: 14px; margin-top: 8px;">Цей розділ підготовлено для нових показників та підрахунків зміни.</p>
+        </div>
+    </div>
         
-        <!-- 3 СТИЛЬНІ КАРТКИ ЗІ СКРІНШОТА -->
-        <div class="kpi-row">
-            <div class="kpi-card kpi-income">
-                <div class="kpi-header">
-                    <span class="kpi-icon icon-income">↑</span>
-                    <span>Дохід</span>
-                </div>
-                <div class="kpi-value"><span id="total-income">0</span> грн</div>
-            </div>
-
-            <div class="kpi-card kpi-expense">
-                <div class="kpi-header">
-                    <span class="kpi-icon icon-expense">↓</span>
-                    <span>Витрата</span>
-                </div>
-                <div class="kpi-value"><span id="total-expense">0</span> грн</div>
-            </div>
-
-            <div class="kpi-card kpi-profit">
-                <div class="kpi-header">
-                    <span class="kpi-icon icon-profit">★</span>
-                    <span>Прибуток</span>
-                </div>
-                <div class="kpi-value"><span id="total-profit">0</span> грн</div>
-            </div>
-        </div>
-
-        <div class="filter-bar">
-            <label style="font-weight: 500;">Режим:</label>
-            <select id="filter-mode" onchange="updateFilterInput()">
-                <option value="day">День</option>
-                <option value="month">Місяць</option>
-                <option value="year">Рік</option>
-            </select>
-            
-            <span id="filter-input-container">
-                <input type="date" id="filter-value" onchange="filterAccounting()">
-            </span>
-        </div>
-
-        <div class="table-card">
-            <table>
-                <thead>
-                    <tr><th>Товар</th><th>Вага</th><th>Ціна/кг</th><th>Сума продажу</th><th>Дата</th></tr>
-                </thead>
-                <tbody id="accounting-list"></tbody>
-            </table>
-        </div>
-    </div> <!-- кінець бухгалтерії -->
             <!-- ОСОБИСТИЙ КАБІНЕТ -->
     <div id="profile" class="tab">
         <div class="section-title">Особистий кабінет</div>
@@ -580,6 +537,60 @@
                     </div>
                     <div class="kpi-value"><span id="avg-period-revenue">0.00</span> грн</div>
                 </div>
+            </div>
+
+            <!-- ФІНАНСОВИЙ ЗВІТ / БУХГАЛТЕРІЯ (ТІЛЬКИ ДЛЯ АДМІНА) -->
+            <div class="section-title" style="margin-top: 35px;">📈 Фінансовий звіт (Доходи та Прибуток)</div>
+            
+            <!-- 3 СТИЛЬНІ КАРТКИ ПРИБУТКУ ЗІ СКРІНШОТА -->
+            <div class="kpi-row">
+                <div class="kpi-card kpi-income">
+                    <div class="kpi-header">
+                        <span class="kpi-icon icon-income">↑</span>
+                        <span>Дохід</span>
+                    </div>
+                    <div class="kpi-value"><span id="total-income">0.00</span> грн</div>
+                </div>
+
+                <div class="kpi-card kpi-expense">
+                    <div class="kpi-header">
+                        <span class="kpi-icon icon-expense">↓</span>
+                        <span>Собівартість закупки</span>
+                    </div>
+                    <div class="kpi-value"><span id="total-expense">0.00</span> грн</div>
+                </div>
+
+                <div class="kpi-card kpi-profit">
+                    <div class="kpi-header">
+                        <span class="kpi-icon icon-profit">★</span>
+                        <span>Чистий прибуток</span>
+                    </div>
+                    <div class="kpi-value"><span id="total-profit">0.00</span> грн</div>
+                </div>
+            </div>
+
+            <!-- ФІЛЬТР ПЕРІОДУ ДЛЯ БУХГАЛТЕРІЇ -->
+            <div class="filter-bar">
+                <label style="font-weight: 500;">Період:</label>
+                <select id="filter-mode" onchange="updateFilterInput()">
+                    <option value="day">День</option>
+                    <option value="month">Місяць</option>
+                    <option value="year">Рік</option>
+                </select>
+                
+                <span id="filter-input-container">
+                    <input type="date" id="filter-value" onchange="filterAccounting()">
+                </span>
+            </div>
+
+            <!-- ДЕТАЛЬНА ТАБЛИЦЯ ПРОДАЖІВ ТА ПРИБУТКУ -->
+            <div class="table-card">
+                <table>
+                    <thead>
+                        <tr><th>Товар</th><th>Вага</th><th>Ціна/кг</th><th>Сума продажу</th><th>Дата</th></tr>
+                    </thead>
+                    <tbody id="accounting-list"></tbody>
+                </table>
             </div>
 
 <!-- БЛОК ОБЛІКУ ВИТРАТ МАГАЗИНУ -->
@@ -852,8 +863,9 @@
             if (role === 'admin') {
                 adminBlock.style.display = 'block';
                 sellerBlock.style.display = 'none';
-                updateAvgFilterInput();
-                renderExpenses()
+                updateAvgFilterInput();   // підрахунок середнього чека
+                updateFilterInput();      // підрахунок прибутку та заповнення таблиці
+                renderExpenses();         // підрахунок витрат
             } else {
                 adminBlock.style.display = 'none';
                 sellerBlock.style.display = 'block';
