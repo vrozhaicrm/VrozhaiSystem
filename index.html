@@ -211,6 +211,29 @@
         .tab { display: none; }
         .tab.active { display: block; }
 
+        /* Стильні окремі блоки в кабінеті адміна */
+        .admin-section-box {
+            background: #ffffff;
+            border: 1px solid #e0dfd9;
+            border-radius: 18px;
+            padding: 24px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.02);
+        }
+        .admin-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #1b4332;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0ec;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         /* Модальне вікно логіна */
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -492,141 +515,144 @@
 
         <!-- БЛОК АНАЛІТИКИ: ДОСТУПНИЙ ТІЛЬКИ ДЛЯ АДМІНІСТРАТОРА -->
         <div id="admin-analytics-block" style="display: none;">
-            <div class="section-title" style="margin-top: 10px;">📊 Аналітика чеків та продажів</div>
             
-            <!-- ПАНЕЛЬ ВИБОРУ ПЕРІОДУ -->
-            <div class="filter-bar">
-                <label style="font-weight: 500;">Період розрахунку:</label>
-                <select id="avg-filter-mode" onchange="updateAvgFilterInput()">
-                    <option value="day">День</option>
-                    <option value="month">Місяць</option>
-                    <option value="year">Рік</option>
-                    <option value="all">За весь час</option>
-                </select>
+            <!-- ================= 1. БЛОК: ЧЕКИ ТА КАСА ================= -->
+            <div class="admin-section-box">
+                <div class="admin-section-header">
+                    <span>📊 Аналітика чеків та продажів</span>
+                </div>
                 
-                <span id="avg-filter-container">
-                    <input type="date" id="avg-filter-value" onchange="calcAverageCheck()">
-                </span>
-            </div>
-
-            <!-- 3 КАРТКИ З СЕРЕДНІМ ЧЕКОМ -->
-            <div class="kpi-row">
-                <!-- СЕРЕДНІЙ ЧЕК -->
-                <div class="kpi-card kpi-profit" style="border-width: 2.5px;">
-                    <div class="kpi-header">
-                        <span class="kpi-icon icon-profit">🧾</span>
-                        <span>Середній чек</span>
-                    </div>
-                    <div class="kpi-value" style="color: #006442;"><span id="avg-check-value">0.00</span> грн</div>
+                <div class="filter-bar">
+                    <label style="font-weight: 500;">Період розрахунку:</label>
+                    <select id="avg-filter-mode" onchange="updateAvgFilterInput()">
+                        <option value="day">День</option>
+                        <option value="month">Місяць</option>
+                        <option value="year">Рік</option>
+                        <option value="all">За весь час</option>
+                    </select>
+                    
+                    <span id="avg-filter-container">
+                        <input type="date" id="avg-filter-value" onchange="calcAverageCheck()">
+                    </span>
                 </div>
 
-                <!-- КІЛЬКІСТЬ ЧЕКІВ -->
-                <div class="kpi-card kpi-income">
-                    <div class="kpi-header">
-                        <span class="kpi-icon icon-income">🛍️</span>
-                        <span>Кількість покупок (чеків)</span>
+                <div class="kpi-row" style="margin-bottom: 0;">
+                    <div class="kpi-card kpi-profit" style="border-width: 2.5px;">
+                        <div class="kpi-header">
+                            <span class="kpi-icon icon-profit">🧾</span>
+                            <span>Середній чек</span>
+                        </div>
+                        <div class="kpi-value" style="color: #006442;"><span id="avg-check-value">0.00</span> грн</div>
                     </div>
-                    <div class="kpi-value"><span id="total-checks-count">0</span></div>
-                </div>
 
-                <!-- ЗАГАЛЬНА ВИРУЧКА -->
-                <div class="kpi-card kpi-income">
-                    <div class="kpi-header">
-                        <span class="kpi-icon icon-income">💰</span>
-                        <span>Каса за вибраний період</span>
+                    <div class="kpi-card kpi-income">
+                        <div class="kpi-header">
+                            <span class="kpi-icon icon-income">🛍️</span>
+                            <span>Кількість покупок (чеків)</span>
+                        </div>
+                        <div class="kpi-value"><span id="total-checks-count">0</span></div>
                     </div>
-                    <div class="kpi-value"><span id="avg-period-revenue">0.00</span> грн</div>
-                </div>
-            </div>
 
-            <!-- ФІНАНСОВИЙ ЗВІТ / БУХГАЛТЕРІЯ (ТІЛЬКИ ДЛЯ АДМІНА) -->
-            <div class="section-title" style="margin-top: 35px;">📈 Фінансовий звіт (Доходи та Прибуток)</div>
-            
-            <!-- 3 СТИЛЬНІ КАРТКИ ПРИБУТКУ ЗІ СКРІНШОТА -->
-            <div class="kpi-row">
-                <div class="kpi-card kpi-income">
-                    <div class="kpi-header">
-                        <span class="kpi-icon icon-income">↑</span>
-                        <span>Дохід</span>
+                    <div class="kpi-card kpi-income">
+                        <div class="kpi-header">
+                            <span class="kpi-icon icon-income">💰</span>
+                            <span>Каса за вибраний період</span>
+                        </div>
+                        <div class="kpi-value"><span id="avg-period-revenue">0.00</span> грн</div>
                     </div>
-                    <div class="kpi-value"><span id="total-income">0.00</span> грн</div>
-                </div>
-
-                <div class="kpi-card kpi-expense">
-                    <div class="kpi-header">
-                        <span class="kpi-icon icon-expense">↓</span>
-                        <span>Собівартість закупки</span>
-                    </div>
-                    <div class="kpi-value"><span id="total-expense">0.00</span> грн</div>
-                </div>
-
-                <div class="kpi-card kpi-profit">
-                    <div class="kpi-header">
-                        <span class="kpi-icon icon-profit">★</span>
-                        <span>Чистий прибуток</span>
-                    </div>
-                    <div class="kpi-value"><span id="total-profit">0.00</span> грн</div>
                 </div>
             </div>
 
-            <!-- ФІЛЬТР ПЕРІОДУ ДЛЯ БУХГАЛТЕРІЇ -->
-            <div class="filter-bar">
-                <label style="font-weight: 500;">Період:</label>
-                <select id="filter-mode" onchange="updateFilterInput()">
-                    <option value="day">День</option>
-                    <option value="month">Місяць</option>
-                    <option value="year">Рік</option>
-                </select>
+            <!-- ================= 2. БЛОК: ДОХОДИ ТА ПРИБУТОК ================= -->
+            <div class="admin-section-box">
+                <div class="admin-section-header">
+                    <span>📈 Фінансовий звіт (Доходи та Прибуток)</span>
+                </div>
                 
-                <span id="filter-input-container">
-                    <input type="date" id="filter-value" onchange="filterAccounting()">
-                </span>
-            </div>
+                <div class="kpi-row">
+                    <div class="kpi-card kpi-income">
+                        <div class="kpi-header">
+                            <span class="kpi-icon icon-income">↑</span>
+                            <span>Дохід</span>
+                        </div>
+                        <div class="kpi-value"><span id="total-income">0.00</span> грн</div>
+                    </div>
 
-            <!-- ДЕТАЛЬНА ТАБЛИЦЯ ПРОДАЖІВ ТА ПРИБУТКУ -->
-            <div class="table-card">
-                <table>
-                    <thead>
-                        <tr><th>Товар</th><th>Вага</th><th>Ціна/кг</th><th>Сума продажу</th><th>Дата</th></tr>
-                    </thead>
-                    <tbody id="accounting-list"></tbody>
-                </table>
-            </div>
+                    <div class="kpi-card kpi-expense">
+                        <div class="kpi-header">
+                            <span class="kpi-icon icon-expense">↓</span>
+                            <span>Собівартість закупки</span>
+                        </div>
+                        <div class="kpi-value"><span id="total-expense">0.00</span> грн</div>
+                    </div>
 
-<!-- БЛОК ОБЛІКУ ВИТРАТ МАГАЗИНУ -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 35px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-                <div class="section-title" style="margin: 0;">💸 Операційні витрати (Оренда, пакети, зарплата тощо)</div>
-                <div style="font-size: 15px; font-weight: 700; color: #c62828; background: #ffebee; border: 1px solid #ffcdd2; padding: 6px 14px; border-radius: 10px;">
-                    Всього витрачено: <span id="total-expenses-sum">0.00</span> грн
+                    <div class="kpi-card kpi-profit">
+                        <div class="kpi-header">
+                            <span class="kpi-icon icon-profit">★</span>
+                            <span>Чистий прибуток</span>
+                        </div>
+                        <div class="kpi-value"><span id="total-profit">0.00</span> грн</div>
+                    </div>
+                </div>
+
+                <div class="filter-bar">
+                    <label style="font-weight: 500;">Період:</label>
+                    <select id="filter-mode" onchange="updateFilterInput()">
+                        <option value="day">День</option>
+                        <option value="month">Місяць</option>
+                        <option value="year">Рік</option>
+                    </select>
+                    
+                    <span id="filter-input-container">
+                        <input type="date" id="filter-value" onchange="filterAccounting()">
+                    </span>
+                </div>
+
+                <div class="table-card">
+                    <table>
+                        <thead>
+                            <tr><th>Товар</th><th>Вага</th><th>Ціна/кг</th><th>Сума продажу</th><th>Дата</th></tr>
+                        </thead>
+                        <tbody id="accounting-list"></tbody>
+                    </table>
                 </div>
             </div>
-            
-            <!-- ПАНЕЛЬ ВВЕДЕННЯ ВИТРАТИ -->
-            <div class="filter-bar" style="gap: 10px; flex-wrap: wrap;">
-                <input type="text" id="exp-category" placeholder="Тип витрати (напр: Оренда, Пакети, Доставка)" style="min-width: 250px;">
-                <input type="number" id="exp-amount" placeholder="Сума (грн)" style="width: 140px;">
-                <span style="font-size: 13px; color: #555; background: #e8e8e4; padding: 8px 12px; border-radius: 8px; font-weight: 500;" title="Дата підставляється автоматично">
-                    🕒 Дата: <b id="exp-auto-date">автоматично</b>
-                </span>
-                <button class="primary-btn" onclick="addExpense()" style="background: #c62828;">+ Додати витрату</button>
+
+            <!-- ================= 3. БЛОК: ОПЕРАЦІЙНІ ВИТРАТИ ================= -->
+            <div class="admin-section-box">
+                <div class="admin-section-header">
+                    <span>💸 Операційні витрати (Оренда, пакети, зарплата тощо)</span>
+                    <div style="font-size: 14px; font-weight: 700; color: #c62828; background: #ffebee; border: 1px solid #ffcdd2; padding: 5px 12px; border-radius: 8px;">
+                        Всього витрачено: <span id="total-expenses-sum">0.00</span> грн
+                    </div>
+                </div>
+                
+                <div class="filter-bar" style="gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="exp-category" placeholder="Тип витрати (напр: Оренда, Пакети, Доставка)" style="min-width: 250px;">
+                    <input type="number" id="exp-amount" placeholder="Сума (грн)" style="width: 140px;">
+                    <span style="font-size: 13px; color: #555; background: #e8e8e4; padding: 8px 12px; border-radius: 8px; font-weight: 500;" title="Дата підставляється автоматично">
+                        🕒 Дата: <b id="exp-auto-date">автоматично</b>
+                    </span>
+                    <button class="primary-btn" onclick="addExpense()" style="background: #c62828;">+ Додати витрату</button>
+                </div>
+
+                <div class="table-card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Дата запису</th>
+                                <th>Тип витрати</th>
+                                <th>Сума</th>
+                                <th>Хто вніс</th>
+                                <th>Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenses-list"></tbody>
+                    </table>
+                </div>
             </div>
 
-            <!-- ТАБЛИЦЯ ВИТРАТ -->
-            <div class="table-card">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Дата запису</th>
-                            <th>Тип витрати</th>
-                            <th>Сума</th>
-                            <th>Хто вніс</th>
-                            <th>Дії</th>
-                        </tr>
-                    </thead>
-                    <tbody id="expenses-list"></tbody>
-                </table>
-            </div>
-            </div>
+        </div> <!-- кінець admin-analytics-block -->
         
         <!-- ПОВІДОМЛЕННЯ ДЛЯ ЗВИЧАЙНОГО ПРОДАВЦЯ (SELLER) -->
         <div id="seller-restricted-block" style="display: none;">
