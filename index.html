@@ -305,15 +305,16 @@
         <div class="table-card">
             <table>
                 <thead>
-                    <tr>
-                        <th>Товар</th>
-                        <th>Залишок (кг)</th>
-                        <th>Ціна покупки</th>
-                        <th>Рек. ціна продажу</th>
-                        <th>Орієнтовна каса</th>
-                        <th>Дії</th>
-                    </tr>
-                </thead>
+                <tr>
+                    <th>Товар</th>
+                    <th>Залишок (кг)</th>
+                    <th>Критична к-сть</th>
+                    <th>Ціна покупки</th>
+                    <th>Рек. ціна продажу</th>
+                    <th>Орієнтовна каса</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
                 <tbody id="stock-list"></tbody>
             </table>
         </div>
@@ -613,6 +614,7 @@
                     </thead>
                     <tbody id="expenses-list"></tbody>
                 </table>
+            </div>
             </div>
         
         <!-- ПОВІДОМЛЕННЯ ДЛЯ ЗВИЧАЙНОГО ПРОДАВЦЯ (SELLER) -->
@@ -1110,10 +1112,22 @@
                     }
                 }
 
-                let colorStyle = data.kg < 5 ? "color: red; font-weight: bold;" : "";
+                // Розрахунок індивідуального критичного залишку
+                let critKg = (data.critKg !== undefined && data.critKg !== null) ? parseFloat(data.critKg) : 5;
+                let isCritical = (data.kg <= critKg);
+                let colorStyle = isCritical ? "color: #c62828; font-weight: bold;" : "";
+                let warningBadge = isCritical ? `<span style="background: #ffebee; color: #c62828; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 5px;">⚠️ Мало</span>` : "";
+
+                // Перевірка ролі користувача для можливості редагування
+                let currentRole = sessionStorage.getItem('userRole') || localStorage.getItem('userRole') || 'seller';
+                let critCellHTML = (currentRole === 'admin') 
+                    ? `<td style="cursor: pointer;" onclick="setCriticalQty('${item}')" title="Натисніть, щоб встановити критичну кількість"><b>${critKg} кг</b> <small style="color: #006442;">✏️</small></td>`
+                    : `<td>${critKg} кг</td>`;
+
                 list.innerHTML += `<tr>
                     <td>${item.toUpperCase()}</td>
-                    <td style="${colorStyle}">${data.kg} кг</td>
+                    <td style="${colorStyle}">${data.kg} кг ${warningBadge}</td>
+                    ${critCellHTML}
                     <td>${buyPrice.toFixed(2)} грн</td>
                     <td><b>${sellPrice.toFixed(2)} грн</b></td>
                     <td style="color: #2e7d32; font-weight: bold;">${itemTotalWorth.toFixed(2)} грн</td>
@@ -1417,6 +1431,27 @@
                 } else {
                     inventory[item] = { kg: value, buyPrice: 0 };
                 }
+                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                updateUI();
+            }
+        }
+
+        // ВСТАНОВЛЕННЯ КРИТИЧНОЇ КІЛЬКОСТІ (ТІЛЬКИ ДЛЯ АДМІНІСТРАТОРА)
+        function setCriticalQty(item) {
+            let role = sessionStorage.getItem('userRole') || localStorage.getItem('userRole') || 'seller';
+            if (role !== 'admin') {
+                return alert("Тільки адміністратор має право встановлювати критичну кількість товару!");
+            }
+
+            let currentCrit = (inventory[item] && inventory[item].critKg !== undefined) ? inventory[item].critKg : 5;
+            let val = prompt(`Введіть критичний (мінімальний) залишок у кг для товару ${item.toUpperCase()}:`, currentCrit);
+
+            if (val !== null && !isNaN(val) && parseFloat(val) >= 0) {
+                if (typeof inventory[item] !== 'object') {
+                    inventory[item] = { kg: inventory[item], buyPrice: 0, sellPrice: 0 };
+                }
+                inventory[item].critKg = parseFloat(val);
+                
                 sendToGoogle({ type: "sync_stock", inventory: inventory });
                 updateUI();
             }
