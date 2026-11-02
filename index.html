@@ -345,17 +345,40 @@
 
     <!-- ЗАВІЗ -->
     <div id="supply" class="tab">
-        <div class="section-title">Оприбуткування товару</div>
+        <div class="section-title">Оприбуткування товару (Партія завозу)</div>
         
-        <!-- ПАНЕЛЬ ВВЕДЕННЯ ЗАВОЗУ -->
-        <div class="filter-bar" style="gap: 10px;">
-            <input type="text" id="sup-item" placeholder="Назва товару">
-            <input type="number" id="sup-qty" placeholder="Кг" style="width: 100px;">
-            <input type="number" id="sup-price" placeholder="Ціна покупки (грн/кг)" style="width: 170px;">
-            <input type="number" id="sup-sell-price" placeholder="Рек. ціна (грн/кг)" style="width: 170px;">
-            <button class="primary-btn" onclick="addSupply()">+ Оприбуткувати</button>
+        <!-- ПАНЕЛЬ ВВЕДЕННЯ ЗАВОЗУ (МУЛЬТИ-НАКЛАДНА) -->
+        <div style="background: #ffffff; border: 1px solid #e5e5e0; border-radius: 14px; padding: 18px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+            
+            <!-- КОНТЕЙНЕР РЯДКІВ ТОВАРІВ У ЗАВОЗІ -->
+            <div id="supply-rows-container">
+                <div class="supply-item-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                    <input type="text" class="sup-item" placeholder="Назва товару" style="min-width: 170px;">
+                    <input type="number" class="sup-qty" placeholder="Кг" oninput="calcSupplyTotals()" style="width: 95px;">
+                    <input type="number" class="sup-price" placeholder="Ціна покупки (грн/кг)" oninput="calcSupplyTotals()" style="width: 160px;">
+                    <input type="number" class="sup-sell-price" placeholder="Рек. ціна (грн/кг)" style="width: 160px;">
+                    <input type="text" class="sup-row-total" placeholder="0.00 грн" readonly 
+                           style="background: #fbfbf9; width: 120px; cursor: not-allowed; font-weight: 700; color: #333;" title="Вартість цієї позиції">
+                </div>
+            </div>
+
+            <!-- ПАНЕЛЬ ДІЙ ТА РАЗОМ -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #e0e0dc; flex-wrap: wrap; gap: 12px;">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button type="button" class="action-btn" onclick="addSupplyItemRow()" 
+                            style="background: #e8f5e9; border-color: #a5d6a7; color: #006442; font-weight: 700; padding: 8px 14px; font-size: 14px;" 
+                            title="Додати ще одну позицію в цей завіз">
+                        ➕ Додати позицію
+                    </button>
+                    <input type="text" id="supply-total-preview" placeholder="Разом закупка: 0 грн" readonly 
+                           style="background: #e8f5e9; width: 210px; cursor: not-allowed; font-weight: 800; color: #006442; border: 1.5px solid #81c784; font-size: 15px;">
+                </div>
+                <div>
+                    <button class="primary-btn" onclick="addSupply()" style="padding: 10px 28px; font-size: 15px;">📦 Оприбуткувати завіз</button>
+                </div>
+            </div>
         </div>
-        
+
         <div class="section-title" style="margin-top: 25px;">Історія завозів</div>
         <div class="filter-bar">
             <!-- 1. Фільтр за товаром -->
@@ -379,6 +402,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th>Завіз №</th>
                         <th>Товар</th>
                         <th>К-сть</th>
                         <th>Ціна покупки</th>
@@ -1211,7 +1235,9 @@
                 .map((s, index) => {
                     let realIndex = supplies.length - 1 - index;
                     let sellP = s.sellPrice ? `${parseFloat(s.sellPrice).toFixed(2)} грн` : '-';
+                    let batchBadge = s.batchNum ? `<b style="color: #006442; background: #e8f5e9; padding: 3px 8px; border-radius: 6px;">№ ${s.batchNum}</b>` : '-';
                     return `<tr>
+                        <td>${batchBadge}</td>
                         <td>${s.item.toUpperCase()}</td>
                         <td>${s.qty} кг</td>
                         <td>${parseFloat(s.price).toFixed(2)} грн</td>
@@ -1279,34 +1305,128 @@
             localStorage.setItem('supplies', JSON.stringify(supplies));
         }
 
+        // АЛГОРИТМ ПОШУКУ НАЙМЕНШОГО ВІЛЬНОГО НОМЕРА ЗАВОЗУ (1, 2, 3...)
+        function getNextSupplyBatchNumber() {
+            let usedNumbers = new Set(
+                supplies.map(s => parseInt(s.batchNum)).filter(n => !isNaN(n) && n > 0)
+            );
+            let nextNum = 1;
+            while (usedNumbers.has(nextNum)) {
+                nextNum++;
+            }
+            return nextNum;
+        }
+
+        // ДОДАВАННЯ НОВОГО РЯДКА В ЗАВІЗ ПО КНОПЦІ ПЛЮС
+        function addSupplyItemRow() {
+            let container = document.getElementById('supply-rows-container');
+            let div = document.createElement('div');
+            div.className = 'supply-item-row';
+            div.style.cssText = 'display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;';
+            
+            div.innerHTML = `
+                <input type="text" class="sup-item" placeholder="Назва товару" style="min-width: 170px;">
+                <input type="number" class="sup-qty" placeholder="Кг" oninput="calcSupplyTotals()" style="width: 95px;">
+                <input type="number" class="sup-price" placeholder="Ціна покупки (грн/кг)" oninput="calcSupplyTotals()" style="width: 160px;">
+                <input type="number" class="sup-sell-price" placeholder="Рек. ціна (грн/кг)" style="width: 160px;">
+                <input type="text" class="sup-row-total" placeholder="0.00 грн" readonly 
+                       style="background: #fbfbf9; width: 120px; cursor: not-allowed; font-weight: 700; color: #333;">
+                <button type="button" onclick="removeSupplyRow(this)" style="background: #fff; border: 1px solid #ffcdd2; color: #d32f2f; border-radius: 6px; padding: 6px 10px; cursor: pointer;" title="Видалити цей рядок">✖</button>
+            `;
+            container.appendChild(div);
+        }
+
+        // ВИДАЛЕННЯ РЯДКА З ФОРМИ ЗАВОЗУ
+        function removeSupplyRow(btn) {
+            btn.parentElement.remove();
+            calcSupplyTotals();
+        }
+
+        // ПІДРАХУНОК СУМИ ВСЬОГО ЗАВОЗУ
+        function calcSupplyTotals() {
+            let rows = document.querySelectorAll('.supply-item-row');
+            let grandTotal = 0;
+            rows.forEach(r => {
+                let qty = parseFloat(r.querySelector('.sup-qty').value) || 0;
+                let price = parseFloat(r.querySelector('.sup-price').value) || 0;
+                let lineTotal = qty * price;
+                r.querySelector('.sup-row-total').value = (lineTotal > 0) ? `${lineTotal.toFixed(2)} грн` : "";
+                grandTotal += lineTotal;
+            });
+            let preview = document.getElementById('supply-total-preview');
+            if (preview) preview.value = (grandTotal > 0) ? `Разом: ${grandTotal.toFixed(2)} грн` : "";
+        }
+
+        // ПРОВЕДЕННЯ ПАРТІЇ ЗАВОЗУ (МУЛЬТИ-ПОЗИЦІЇ)
         function addSupply() {
-            let item = document.getElementById('sup-item').value.trim().toLowerCase();
-            let qty = parseFloat(document.getElementById('sup-qty').value);
-            let price = parseFloat(document.getElementById('sup-price').value);
-            let sellPrice = parseFloat(document.getElementById('sup-sell-price').value);
+            let rows = document.querySelectorAll('.supply-item-row');
+            let itemsToSupply = [];
 
-            if (!item || isNaN(qty) || isNaN(price) || isNaN(sellPrice)) {
-                return alert("Заповніть усі поля, включно з рекомендованою ціною!");
+            // Перевіряємо всі заповнені рядки
+            for (let r of rows) {
+                let item = r.querySelector('.sup-item').value.trim().toLowerCase();
+                let qty = parseFloat(r.querySelector('.sup-qty').value);
+                let price = parseFloat(r.querySelector('.sup-price').value);
+                let sellPrice = parseFloat(r.querySelector('.sup-sell-price').value);
+
+                if (!item || isNaN(qty) || isNaN(price) || isNaN(sellPrice) || qty <= 0) {
+                    return alert("Будь ласка, заповніть назву товару, вагу та обидві ціни для кожного рядка!");
+                }
+
+                itemsToSupply.push({ item, qty, price, sellPrice, total: (qty * price).toFixed(2) });
             }
 
-            if (!inventory[item]) {
-                inventory[item] = { kg: 0, buyPrice: price, sellPrice: sellPrice };
-            }
-            inventory[item].kg += qty;
-            inventory[item].buyPrice = price;
-            inventory[item].sellPrice = sellPrice; // зберігаємо рекомендовану ціну на складі
+            if (itemsToSupply.length === 0) return;
 
+            // Отримуємо унікальний номер завозу (з урахуванням звільнених)
+            let batchNumber = getNextSupplyBatchNumber();
             let date = formatDateTime(new Date());
-            supplies.push({ date: date, item, qty, price, sellPrice });
 
-            sendToGoogle({ type: "supply", date: date, item: item, qty: qty, price: price, sellPrice: sellPrice, total: (qty * price).toFixed(2) });
+            itemsToSupply.forEach(pos => {
+                if (!inventory[pos.item]) {
+                    inventory[pos.item] = { kg: 0, buyPrice: pos.price, sellPrice: pos.sellPrice, critKg: 5 };
+                }
+                inventory[pos.item].kg += pos.qty;
+                inventory[pos.item].buyPrice = pos.price;
+                inventory[pos.item].sellPrice = pos.sellPrice;
+
+                supplies.push({
+                    batchNum: batchNumber,
+                    date: date,
+                    item: pos.item,
+                    qty: pos.qty,
+                    price: pos.price,
+                    sellPrice: pos.sellPrice
+                });
+
+                sendToGoogle({
+                    type: "supply",
+                    batchNum: batchNumber,
+                    date: date,
+                    item: pos.item,
+                    qty: pos.qty,
+                    price: pos.price,
+                    sellPrice: pos.sellPrice,
+                    total: pos.total
+                });
+            });
+
             sendToGoogle({ type: "sync_stock", inventory: inventory });
             sendToGoogle({ type: "sync_supplies", supplies: supplies });
-            
-            document.getElementById('sup-item').value = "";
-            document.getElementById('sup-qty').value = "";
-            document.getElementById('sup-price').value = "";
-            document.getElementById('sup-sell-price').value = "";
+
+            // Скидаємо форму завозу до 1 порожнього рядка
+            let container = document.getElementById('supply-rows-container');
+            container.innerHTML = `
+                <div class="supply-item-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                    <input type="text" class="sup-item" placeholder="Назва товару" style="min-width: 170px;">
+                    <input type="number" class="sup-qty" placeholder="Кг" oninput="calcSupplyTotals()" style="width: 95px;">
+                    <input type="number" class="sup-price" placeholder="Ціна покупки (грн/кг)" oninput="calcSupplyTotals()" style="width: 160px;">
+                    <input type="number" class="sup-sell-price" placeholder="Рек. ціна (грн/кг)" style="width: 160px;">
+                    <input type="text" class="sup-row-total" placeholder="0.00 грн" readonly 
+                           style="background: #fbfbf9; width: 120px; cursor: not-allowed; font-weight: 700; color: #333;">
+                </div>
+            `;
+            document.getElementById('supply-total-preview').value = "";
             updateUI();
         }
 
