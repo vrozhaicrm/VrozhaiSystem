@@ -631,7 +631,7 @@
     <script>
         const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbw-PgmkI5M3MvzBK2Xl9JcD7vNBTS-eCUV1-9ykpBy5Wi4doDshV7vc_WCgKf51E_ZGSA/exec";
         
-        // ЗАВАНТАЖЕННЯ ДАНИХ З GOOGLE ТАБЛИЦІ (ДВОСТОРОННІЙ ЗВ'ЯЗОК)
+        // ЗАВАНТАЖЕННЯ ДАНИХ З GOOGLE ТАБЛИЦІ (ЗІ ЗБЕРЕЖЕННЯМ КРИТИЧНИХ ЛІМІТІВ)
         function loadFromGoogle(showNotify = false) {
             let badge = document.getElementById('user-badge');
             let originalText = badge ? badge.innerText : "";
@@ -641,11 +641,20 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.success && res.data) {
-                        inventory = res.data.inventory || {};
+                        let cloudInv = res.data.inventory || {};
+
+                        // Страховка: якщо в хмарі ще немає критичного залишку — залишаємо наш локальний
+                        for (let it in cloudInv) {
+                            if (cloudInv[it].critKg === undefined && inventory[it] && inventory[it].critKg !== undefined) {
+                                cloudInv[it].critKg = inventory[it].critKg;
+                            }
+                        }
+
+                        inventory = cloudInv;
                         supplies = res.data.supplies || [];
                         history = res.data.history || [];
 
-                        // Оновлюємо пам'ять поточного пристрою
+                        // Миттєво оновлюємо локальну пам'ять
                         localStorage.setItem('inventory', JSON.stringify(inventory));
                         localStorage.setItem('supplies', JSON.stringify(supplies));
                         localStorage.setItem('history', JSON.stringify(history));
@@ -1452,6 +1461,8 @@
                 }
                 inventory[item].critKg = parseFloat(val);
                 
+                // Миттєво зберігаємо в пам'ять браузера:
+                localStorage.setItem('inventory', JSON.stringify(inventory));
                 sendToGoogle({ type: "sync_stock", inventory: inventory });
                 updateUI();
             }
