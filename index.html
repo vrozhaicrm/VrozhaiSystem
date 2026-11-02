@@ -582,7 +582,12 @@
             </div>
 
 <!-- БЛОК ОБЛІКУ ВИТРАТ МАГАЗИНУ -->
-            <div class="section-title" style="margin-top: 35px;">💸 Операційні витрати (Оренда, пакети, зарплата тощо)</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 35px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                <div class="section-title" style="margin: 0;">💸 Операційні витрати (Оренда, пакети, зарплата тощо)</div>
+                <div style="font-size: 15px; font-weight: 700; color: #c62828; background: #ffebee; border: 1px solid #ffcdd2; padding: 6px 14px; border-radius: 10px;">
+                    Всього витрачено: <span id="total-expenses-sum">0.00</span> грн
+                </div>
+            </div>
             
             <!-- ПАНЕЛЬ ВВЕДЕННЯ ВИТРАТИ -->
             <div class="filter-bar" style="gap: 10px; flex-wrap: wrap;">
@@ -914,6 +919,14 @@
             let list = document.getElementById('expenses-list');
             if (!list) return;
             list.innerHTML = "";
+
+            // Рахуємо загальну суму всіх витрат
+            let totalSum = 0;
+            expenses.forEach(e => {
+                totalSum += parseFloat(e.amount) || 0;
+            });
+            let sumEl = document.getElementById('total-expenses-sum');
+            if (sumEl) sumEl.innerText = totalSum.toFixed(2);
 
             if (expenses.length === 0) {
                 list.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888; padding: 20px;">Витрат ще не додано</td></tr>`;
