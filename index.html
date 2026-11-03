@@ -735,6 +735,13 @@
                         inventory = cloudInv;
                         supplies = cloudSupplies;
                         history = res.data.history || [];
+                        
+                        // Підтягуємо витрати з хмари Google
+                        if (res.data.expenses) {
+                            expenses = res.data.expenses;
+                            localStorage.setItem('expenses', JSON.stringify(expenses));
+                            renderExpenses();
+                        }
 
                         // Миттєво оновлюємо локальну пам'ять
                         localStorage.setItem('inventory', JSON.stringify(inventory));
@@ -1084,6 +1091,10 @@
             if (confirm(`Видалити витрату "${exp.category.toUpperCase()}" на суму ${exp.amount} грн?`)) {
                 expenses.splice(index, 1);
                 localStorage.setItem('expenses', JSON.stringify(expenses));
+                
+                // Видаляємо також із Google Таблиці:
+                sendToGoogle({ type: "sync_expenses", expenses: expenses });
+                
                 renderExpenses();
             }
         }
