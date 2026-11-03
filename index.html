@@ -711,8 +711,16 @@
                             }
                         }
 
+                        // Страховка: якщо в хмарі ще немає номерів завозу — залишаємо наші локальні
+                        let cloudSupplies = res.data.supplies || [];
+                        for (let i = 0; i < cloudSupplies.length; i++) {
+                            if (!cloudSupplies[i].batchNum && supplies[i] && supplies[i].batchNum) {
+                                cloudSupplies[i].batchNum = supplies[i].batchNum;
+                            }
+                        }
+
                         inventory = cloudInv;
-                        supplies = res.data.supplies || [];
+                        supplies = cloudSupplies;
                         history = res.data.history || [];
 
                         // Миттєво оновлюємо локальну пам'ять
