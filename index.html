@@ -689,6 +689,52 @@
                 </div>
             </div>
 
+            <!-- ================= 4. БЛОК: ПЛАН ТА ЗАРПЛАТА ПРОДАВЦЯ ================= -->
+            <div class="admin-section-box">
+                <div class="admin-section-header">
+                    <span>🎯 Щоденний план та зарплата продавця (3 ступені)</span>
+                    <span id="plan-status-badge" style="font-size: 13px; font-weight: 600; color: #006442; background: #e8f5e9; padding: 5px 12px; border-radius: 8px;">
+                        Встановлено тариф
+                    </span>
+                </div>
+                
+                <p style="font-size: 14px; color: #666; margin-top: 0; margin-bottom: 20px;">
+                    Вкажіть касу за день та відповідну денну ставку продавця. Зміни зберігаються за датою — минулі відпрацьовані дні залишаться порахованими за старими тарифами!
+                </p>
+
+                <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <!-- Ступінь 1 (від 0 грн) -->
+                    <div style="flex: 1; min-width: 220px; background: #fafaf7; border: 1.5px solid #e0dfd9; border-radius: 14px; padding: 18px;">
+                        <div style="font-weight: 700; color: #1b4332; margin-bottom: 8px; font-size: 15px;">🥉 Ступінь 1 (Базова ставка)</div>
+                        <div style="font-size: 13px; color: #666; margin-bottom: 12px;">Денна каса: <b>від 0 грн</b></div>
+                        <label style="font-size: 13px; font-weight: 600; color: #444; display: block; margin-bottom: 5px;">Зарплата за день (грн):</label>
+                        <input type="number" id="plan-t1-salary" placeholder="напр: 500" style="width: 100%;">
+                    </div>
+
+                    <!-- Ступінь 2 -->
+                    <div style="flex: 1; min-width: 220px; background: #fafaf7; border: 1.5px solid #e0dfd9; border-radius: 14px; padding: 18px;">
+                        <div style="font-weight: 700; color: #1b4332; margin-bottom: 8px; font-size: 15px;">🥈 Ступінь 2 (Стандарт)</div>
+                        <label style="font-size: 13px; font-weight: 600; color: #444; display: block; margin-bottom: 5px;">Денна каса від (грн):</label>
+                        <input type="number" id="plan-t2-min" placeholder="напр: 5000" style="width: 100%; margin-bottom: 10px;">
+                        <label style="font-size: 13px; font-weight: 600; color: #444; display: block; margin-bottom: 5px;">Зарплата за день (грн):</label>
+                        <input type="number" id="plan-t2-salary" placeholder="напр: 800" style="width: 100%;">
+                    </div>
+
+                    <!-- Ступінь 3 -->
+                    <div style="flex: 1; min-width: 220px; background: #fafaf7; border: 1.5px solid #e0dfd9; border-radius: 14px; padding: 18px;">
+                        <div style="font-weight: 700; color: #1b4332; margin-bottom: 8px; font-size: 15px;">🥇 Ступінь 3 (Преміум)</div>
+                        <label style="font-size: 13px; font-weight: 600; color: #444; display: block; margin-bottom: 5px;">Денна каса від (грн):</label>
+                        <input type="number" id="plan-t3-min" placeholder="напр: 8000" style="width: 100%; margin-bottom: 10px;">
+                        <label style="font-size: 13px; font-weight: 600; color: #444; display: block; margin-bottom: 5px;">Зарплата за день (грн):</label>
+                        <input type="number" id="plan-t3-salary" placeholder="напр: 1200" style="width: 100%;">
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end;">
+                    <button class="primary-btn" onclick="saveSalaryPlan()" style="padding: 11px 26px; font-size: 15px;">💾 Зберегти план мотивації</button>
+                </div>
+            </div>
+
         </div> <!-- кінець admin-analytics-block -->
         
         <!-- ПОВІДОМЛЕННЯ ДЛЯ ЗВИЧАЙНОГО ПРОДАВЦЯ (SELLER) -->
@@ -885,6 +931,7 @@
         let salesViewMode = 'today'; // за замовчуванням показуємо продажі за сьогодні
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
         let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+        let salaryPlans = JSON.parse(localStorage.getItem('salaryPlans')) || [];
         let history = JSON.parse(localStorage.getItem('history')) || [];
         let supplies = JSON.parse(localStorage.getItem('supplies')) || [];
         let salesLimit = 30;
@@ -944,6 +991,7 @@
                 updateAvgFilterInput();   // підрахунок середнього чека
                 updateFilterInput();      // підрахунок прибутку та заповнення таблиці
                 renderExpenses();         // підрахунок витрат
+                loadSalaryPlanInputs();
             } else {
                 adminBlock.style.display = 'none';
                 sellerBlock.style.display = 'block';
@@ -1046,6 +1094,67 @@
                     </td>
                 </tr>`;
             });
+        }
+
+        // ОТРИМАННЯ ТАРИФУ, ЯКИЙ ДІЯВ НА КОНКРЕТНУ ДАТУ (YYYY-MM-DD)
+        function getPlanForDate(targetDateYMD) {
+            if (salaryPlans.length === 0) {
+                // Стандартний тариф за замовчуванням
+                return { t1_salary: 500, t2_min: 5000, t2_salary: 800, t3_min: 8000, t3_salary: 1200 };
+            }
+            // Сортуємо плани від найновішого до найстарішого
+            let sorted = salaryPlans.slice().sort((a, b) => b.date.localeCompare(a.date));
+            // Знаходимо перший план, дата якого менша або дорівнює потрібному дню
+            let active = sorted.find(p => p.date <= targetDateYMD);
+            return active || sorted[sorted.length - 1];
+        }
+
+        // ВІДОБРАЖЕННЯ ПОТОЧНИХ НАЛАШТУВАНЬ ПЛАНУ В КАБІНЕТІ АДМІНА
+        function loadSalaryPlanInputs() {
+            let now = new Date();
+            let todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            let currentPlan = getPlanForDate(todayYMD);
+
+            document.getElementById('plan-t1-salary').value = currentPlan.t1_salary || "";
+            document.getElementById('plan-t2-min').value = currentPlan.t2_min || "";
+            document.getElementById('plan-t2-salary').value = currentPlan.t2_salary || "";
+            document.getElementById('plan-t3-min').value = currentPlan.t3_min || "";
+            document.getElementById('plan-t3-salary').value = currentPlan.t3_salary || "";
+
+            let badge = document.getElementById('plan-status-badge');
+            if (badge && currentPlan.date) {
+                badge.innerText = `Діє з ${formatDateTime(currentPlan.date)}`;
+            }
+        }
+
+        // ЗБЕРЕЖЕННЯ ПЛАНУ З ФІКСАЦІЄЮ СЬОГОДНІШНЬОЇ ДАТИ
+        function saveSalaryPlan() {
+            let t1_salary = parseFloat(document.getElementById('plan-t1-salary').value) || 0;
+            let t2_min = parseFloat(document.getElementById('plan-t2-min').value) || 0;
+            let t2_salary = parseFloat(document.getElementById('plan-t2-salary').value) || 0;
+            let t3_min = parseFloat(document.getElementById('plan-t3-min').value) || 0;
+            let t3_salary = parseFloat(document.getElementById('plan-t3-salary').value) || 0;
+
+            if (t2_min <= 0 || t3_min <= t2_min || t1_salary < 0 || t2_salary <= t1_salary || t3_salary <= t2_salary) {
+                return alert("Будь ласка, перевірте цифри! План та зарплата для Ступеня 3 мають бути вищими, ніж для Ступеня 2, а Ступінь 2 — вищим за Ступінь 1.");
+            }
+
+            let now = new Date();
+            let todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            // Якщо сьогодні вже зберігали — оновлюємо сьогоднішній план, якщо новий день — додаємо новий запис в історію
+            let existingIndex = salaryPlans.findIndex(p => p.date === todayYMD);
+            let newPlan = { date: todayYMD, t1_salary, t2_min, t2_salary, t3_min, t3_salary };
+
+            if (existingIndex >= 0) {
+                salaryPlans[existingIndex] = newPlan;
+            } else {
+                salaryPlans.push(newPlan);
+            }
+
+            localStorage.setItem('salaryPlans', JSON.stringify(salaryPlans));
+            loadSalaryPlanInputs();
+            alert("🎯 План мотивації успішно збережено! Він діятиме, починаючи з сьогоднішнього дня.");
         }
 
         // ДОДАВАННЯ НОВОЇ ВИТРАТИ
