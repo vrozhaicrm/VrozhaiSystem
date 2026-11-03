@@ -402,6 +402,13 @@
                 <option value="year">Рік</option>
             </select>
             <span id="filter-supply-date-container"></span>
+
+<!-- 3. Фільтр за номером завозу -->
+            <label style="font-weight: 500; margin-left: 10px;">Завіз №:</label>
+            <select id="filter-supply-batch" onchange="updateUI()" style="min-width: 130px; font-weight: 500;">
+                <option value="">Всі заводи</option>
+            </select>
+            
         </div>
 
         <div class="table-card">
@@ -1158,6 +1165,23 @@
                 });
                 if (curSeller) sellerEl.value = curSeller;
             }
+
+                // 3. Номери завозів для фільтра завозу
+            let batchEl = document.getElementById('filter-supply-batch');
+            if (batchEl) {
+                let curBatch = batchEl.value;
+                let batches = new Set();
+                supplies.forEach(s => {
+                    let num = parseInt(s.batchNum);
+                    if (!isNaN(num) && num > 0) batches.add(num);
+                });
+                let sortedBatches = Array.from(batches).sort((a, b) => a - b);
+                batchEl.innerHTML = '<option value="">Всі заводи</option>';
+                sortedBatches.forEach(b => {
+                    batchEl.innerHTML += `<option value="${b}">№ ${b}</option>`;
+                });
+                if (curBatch) batchEl.value = curBatch;
+            }     
         }
 
         function updateUI() {
@@ -1231,12 +1255,19 @@
             let supplyDateMode = document.getElementById('filter-supply-date-mode') ? document.getElementById('filter-supply-date-mode').value : "all";
             let supplyDateEl = document.querySelector('#filter-supply-date-container input');
             let supplyDateVal = supplyDateEl ? String(supplyDateEl.value).trim() : "";
+            
+            // Зчитуємо вибраний номер із нового списку:
+            let filterSupplyBatch = document.getElementById('filter-supply-batch') ? document.getElementById('filter-supply-batch').value : "";
 
             document.getElementById('supply-list').innerHTML = supplies.slice().reverse()
                 .filter(s => {
-                    // Фільтр товару
+                    // 1. Фільтрація за номером завозу:
+                    if (filterSupplyBatch && String(s.batchNum) !== String(filterSupplyBatch)) return false;
+
+                    // 2. Фільтрація за назвою товару:
                     if (filterSupplyItem && s.item !== filterSupplyItem) return false;
-                    // Фільтр дати
+
+                    // 3. Фільтрація за датою:
                     if (supplyDateMode !== 'all' && supplyDateVal) {
                         let p = parseDateHelper(s.date);
                         if (!p) return false;
@@ -1251,7 +1282,7 @@
                     let sellP = s.sellPrice ? `${parseFloat(s.sellPrice).toFixed(2)} грн` : '-';
                     let batchBadge = s.batchNum ? `<b style="color: #006442; background: #e8f5e9; padding: 3px 8px; border-radius: 6px;">№ ${s.batchNum}</b>` : '-';
 
-                    // Визначаємо, чи це останній рядок поточної партії
+                    // Розумне візуальне групування партій
                     let isLastOfBatch = (index === arr.length - 1) || (arr[index + 1].batchNum !== s.batchNum);
                     let bNum = parseInt(s.batchNum) || index;
                     let batchClass = (bNum % 2 === 0 ? "batch-even" : "batch-odd") + (isLastOfBatch ? " batch-end" : "");
@@ -1271,7 +1302,7 @@
                     </tr>`;
                 })
                 .join('');
-
+            
             // ================= 3. ПРОДАЖІ =================
             let filterSalesItem = document.getElementById('filter-sales-item') ? document.getElementById('filter-sales-item').value : "";
             let filterSalesSeller = document.getElementById('filter-sales-seller') ? document.getElementById('filter-sales-seller').value : "";
