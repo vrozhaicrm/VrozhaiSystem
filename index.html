@@ -789,6 +789,13 @@
                             renderExpenses();
                         }
 
+                        // Підтягуємо тарифні плани з хмари Google
+                        if (res.data.salaryPlans && res.data.salaryPlans.length > 0) {
+                            salaryPlans = res.data.salaryPlans;
+                            localStorage.setItem('salaryPlans', JSON.stringify(salaryPlans));
+                            loadSalaryPlanInputs();
+                        }
+
                         // Миттєво оновлюємо локальну пам'ять
                         localStorage.setItem('inventory', JSON.stringify(inventory));
                         localStorage.setItem('supplies', JSON.stringify(supplies));
@@ -1153,6 +1160,13 @@
             }
 
             localStorage.setItem('salaryPlans', JSON.stringify(salaryPlans));
+            
+            // ВІДПРАВЛЯЄМО ПЛАН У GOOGLE ТАБЛИЦЮ:
+            sendToGoogle({
+                type: "sync_salary_plans",
+                plans: salaryPlans
+            });
+
             loadSalaryPlanInputs();
             alert("🎯 План мотивації успішно збережено! Він діятиме, починаючи з сьогоднішнього дня.");
         }
