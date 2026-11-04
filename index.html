@@ -563,23 +563,33 @@
             </div>
         </div>
 
-        <!-- ФІЛЬТРИ ДЛЯ ТАБЛИЦІ ЗАРПЛАТИ ЗА ДНЯМИ -->
-        <div class="section-title" style="margin-top: 15px;">📅 Історія заробітку за змінами</div>
-        <div class="filter-bar">
-            <!-- Вибір продавця (Адмін може вибрати будь-кого, продавець бачить тільки себе) -->
+        <!-- ЗАГОЛОВОК ТА ПІДСУМОК ЗАРПЛАТИ ДО ВИПЛАТИ -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+            <div class="section-title" style="margin: 0;">📅 Історія заробітку за змінами</div>
+            <div style="font-size: 15px; font-weight: 700; color: #006442; background: #e8f5e9; border: 1.5px solid #a5d6a7; padding: 6px 14px; border-radius: 10px;">
+                Зарплата до виплати за період: <span id="salary-period-total">0.00</span> грн
+            </div>
+        </div>
+
+        <!-- ФІЛЬТРИ: ПРОДАВЕЦЬ + ДІАПАЗОН ДАТ "З" І "ПО" -->
+        <div class="filter-bar" style="gap: 10px; flex-wrap: wrap;">
+            <!-- Вибір продавця -->
             <label style="font-weight: 500;">Продавець:</label>
             <select id="salary-filter-seller" onchange="renderSellerSalary()" style="min-width: 150px; font-weight: 500;">
                 <option value="">Мій звіт</option>
             </select>
 
-            <!-- Вибір періоду (Місяць / Рік / Всі) -->
-            <label style="font-weight: 500; margin-left: 10px;">Період:</label>
-            <select id="salary-filter-mode" onchange="updateSalaryFilterInput()">
-                <option value="month" selected>Місяць</option>
-                <option value="year">Рік</option>
-                <option value="all">За весь час</option>
-            </select>
-            <span id="salary-filter-container"></span>
+            <!-- Дата З -->
+            <label style="font-weight: 500; margin-left: 5px;">Період з:</label>
+            <input type="date" id="salary-start-date" onchange="renderSellerSalary()">
+
+            <!-- Дата ПО -->
+            <label style="font-weight: 500;">по:</label>
+            <input type="date" id="salary-end-date" onchange="renderSellerSalary()">
+
+            <!-- Швидкі кнопки -->
+            <button type="button" class="action-btn" onclick="setSalaryDatePreset('current-month')" style="font-size: 13px;">Цей місяць</button>
+            <button type="button" class="action-btn" onclick="setSalaryDatePreset('all')" style="font-size: 13px;">Вся історія</button>
         </div>
 
         <!-- ТАБЛИЦЯ ВИПЛАТ ЗА ЗМІНИ -->
@@ -1020,9 +1030,18 @@
             if (btn) btn.classList.add('active');
             showTab(tabId);
 
-            // Якщо відкрили вкладку продавця — одразу запускаємо розрахунок зарплати та оновлюємо таблицю
+            // Якщо відкрили вкладку продавця — задаємо період і рахуємо зарплату
             if (tabId === 'seller-tab') {
-                updateSalaryFilterInput();
+                let startEl = document.getElementById('salary-start-date');
+                if (startEl && !startEl.value) {
+                    setSalaryDatePreset('current-month');
+                } else {
+                    renderSellerSalary();
+                }
+            }
+
+            if (tabId === 'accounting') {
+                updateFilterInput();
             }
         }
 
@@ -1264,22 +1283,22 @@
             }
         }
 
-        // ПЕРЕМИКАННЯ ФІЛЬТРА ДАТИ ДЛЯ ЗАРПЛАТИ
-        function updateSalaryFilterInput() {
-            let mode = document.getElementById('salary-filter-mode').value;
-            let container = document.getElementById('salary-filter-container');
+        // ШВИДКЕ ВСТАНОВЛЕННЯ ДАТ (ЦЕЙ МІСЯЦЬ / ВСЯ ІСТОРІЯ)
+        function setSalaryDatePreset(preset) {
             let now = new Date();
             let curYear = now.getFullYear();
-            let curMonth = `${curYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            let curMonth = String(now.getMonth() + 1).padStart(2, '0');
+            let curDay = String(now.getDate()).padStart(2, '0');
+            let startEl = document.getElementById('salary-start-date');
+            let endEl = document.getElementById('salary-end-date');
 
-            if (mode === 'month') {
-                container.innerHTML = `<input type="month" id="salary-filter-value" value="${curMonth}" onchange="renderSellerSalary()">`;
-            } else if (mode === 'year') {
-                container.innerHTML = `<input type="number" id="salary-filter-value" value="${curYear}" min="2020" max="2099" oninput="renderSellerSalary()">`;
-            } else {
-                container.innerHTML = `<span style="font-size: 13px; color: #777;">Вся історія</span>`;
+            if (preset === 'current-month') {
+                if (startEl) startEl.value = `${curYear}-${curMonth}-01`;
+                if (endEl) endEl.value = `${curYear}-${curMonth}-${curDay}`;
+            } else if (preset === 'all') {
+                if (startEl) startEl.value = "";
+                if (endEl) endEl.value = "";
             }
-
             renderSellerSalary();
         }
 
@@ -1342,12 +1361,10 @@
             let diffEl = document.getElementById('seller-next-tier-diff');
             if (diffEl) diffEl.innerText = todayResult.nextInfo;
 
-            // 2. ІСТОРІЯ ЗАРПЛАТ ЗА ДНЯМИ (ГРУПУВАННЯ ЗА ДАТАМИ І ПРОДАВЦЯМИ)
-            let mode = document.getElementById('salary-filter-mode') ? document.getElementById('salary-filter-mode').value : 'month';
-            let filterValEl = document.getElementById('salary-filter-value');
-            let filterVal = filterValEl ? String(filterValEl.value).trim() : "";
+            // 2. ІСТОРІЯ ЗАРПЛАТ ЗА ДНЯМИ ТА ПІДСУМОК ДО ВИПЛАТИ
+            let startDate = document.getElementById('salary-start-date') ? document.getElementById('salary-start-date').value : "";
+            let endDate = document.getElementById('salary-end-date') ? document.getElementById('salary-end-date').value : "";
 
-            // Збираємо касу: { "2026-11-03_ivan": { date: "03.11.2026", ymd: "2026-11-03", seller: "ivan", revenue: 4500 } }
             let dailyMap = {};
 
             history.forEach(h => {
@@ -1357,9 +1374,9 @@
                 let sellerName = h.seller || "Невідомий";
                 if (targetSeller && sellerName.toLowerCase() !== targetSeller.toLowerCase()) return;
 
-                // Фільтр за датою
-                if (mode === 'month' && filterVal && p.yyyy_mm !== filterVal) return;
-                if (mode === 'year' && filterVal && p.year !== filterVal) return;
+                // ФІЛЬТРАЦІЯ ЗА ДІАПАЗОНОМ ДАТ "З" І "ПО"
+                if (startDate && p.yyyy_mm_dd < startDate) return;
+                if (endDate && p.yyyy_mm_dd > endDate) return;
 
                 let key = `${p.yyyy_mm_dd}_${sellerName.toLowerCase()}`;
                 let lineSum = parseFloat(h.totalSum) || (parseFloat(h.qty) * parseFloat(h.pricePerKg)) || 0;
@@ -1380,17 +1397,22 @@
             tableBody.innerHTML = "";
 
             let daysKeys = Object.keys(dailyMap).sort().reverse();
+            let periodTotalSalary = 0; // Загальна сума до виплати за вибраний період
 
             if (daysKeys.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888; padding: 25px;">Записів за вибраний період немає</td></tr>`;
+                let totalEl = document.getElementById('salary-period-total');
+                if (totalEl) totalEl.innerText = "0.00";
                 return;
             }
 
             daysKeys.forEach(k => {
                 let dayData = dailyMap[k];
-                // ЗНАХОДИМО ПЛАН, ЯКИЙ ДІЯВ САМЕ В ТОЙ ДЕНЬ!
+                // Знаходимо тариф, актуальний саме на дату цієї зміни
                 let dayPlan = getPlanForDate(dayData.ymd);
                 let dayRes = calculateTierResult(dayData.revenue, dayPlan);
+                
+                periodTotalSalary += dayRes.salary;
 
                 tableBody.innerHTML += `<tr>
                     <td><b>${dayData.displayDate}</b></td>
@@ -1400,6 +1422,10 @@
                     <td style="font-weight: 800; color: #006442; font-size: 15px;">${dayRes.salary.toFixed(2)} грн</td>
                 </tr>`;
             });
+
+            // Виводимо загальну суму зарплати за період у зелений бейдж
+            let totalEl = document.getElementById('salary-period-total');
+            if (totalEl) totalEl.innerText = periodTotalSalary.toFixed(2);
         }
 
         // ДОДАВАННЯ НОВОЇ ВИТРАТИ
