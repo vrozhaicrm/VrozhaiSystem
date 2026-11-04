@@ -280,6 +280,13 @@
 
         <!-- ВЕРХНЯ ПАНЕЛЬ: МЕНЮ ТА ПРОФІЛЬ -->
         <div class="top-bar">
+            <!-- ПЕРЕМИКАЧ АКТИВНОГО МАГАЗИНУ (МЕРЕЖА) -->
+            <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e0dfd9; padding: 5px 14px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                <span style="font-size: 18px;">🏪</span>
+                <select id="global-store-selector" onchange="changeGlobalStore(this.value)" style="border: none; background: transparent; font-weight: 700; color: #1b4332; font-size: 15px; cursor: pointer; outline: none;">
+                    <option value="all">🌐 Всі магазини мережі</option>
+                </select>
+            </div>
             <nav class="pill-nav" id="main-nav">
                 <button class="nav-btn active" onclick="switchTab(this, 'stock')">Склад</button>
                 <button class="nav-btn" onclick="switchTab(this, 'supply')">Завіз</button>
@@ -807,6 +814,43 @@
                 </div>
             </div>
 
+            <!-- ================= 5. БЛОК: КЕРУВАННЯ МЕРЕЖЕЮ МАГАЗИНІВ ================= -->
+            <div class="admin-section-box">
+                <div class="admin-section-header">
+                    <span>🏢 Керування мережею магазинів</span>
+                    <span style="font-size: 13px; font-weight: 600; color: #006442; background: #e8f5e9; padding: 5px 12px; border-radius: 8px;">
+                        Мережевий режим
+                    </span>
+                </div>
+                
+                <p style="font-size: 14px; color: #666; margin-top: 0; margin-bottom: 20px;">
+                    Додавайте нові філії та торгові точки. Ви зможете перемикатися між ними в шапці сайту та аналізувати результати кожного магазину окремо.
+                </p>
+
+                <!-- ПАНЕЛЬ ДОДАВАННЯ МАГАЗИНУ -->
+                <div class="filter-bar" style="gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="new-store-name" placeholder="Назва магазину (напр: Філія №2 'Центр')" style="min-width: 260px;">
+                    <input type="text" id="new-store-address" placeholder="Адреса або опис (напр: вул. Хрещатик, 10)" style="min-width: 260px;">
+                    <button class="primary-btn" onclick="addNewStore()" style="padding: 9px 20px;">+ Додати магазин</button>
+                </div>
+
+                <!-- ТАБЛИЦЯ СПИСКУ МАГАЗИНІВ -->
+                <div class="table-card" style="margin-top: 15px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Назва філії</th>
+                                <th>Адреса / Примітка</th>
+                                <th>Дата відкриття</th>
+                                <th>Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stores-list-table"></tbody>
+                    </table>
+                </div>
+            </div>
+
         </div> <!-- кінець admin-analytics-block -->
         
         <!-- ПОВІДОМЛЕННЯ ДЛЯ ЗВИЧАЙНОГО ПРОДАВЦЯ (SELLER) -->
@@ -868,6 +912,13 @@
                             loadSalaryPlanInputs();
                         }
 
+                        // Підтягуємо список магазинів мережі з хмари Google
+                        if (res.data.stores && res.data.stores.length > 0) {
+                            stores = res.data.stores;
+                            localStorage.setItem('stores', JSON.stringify(stores));
+                            populateStoreSelectors();
+                        }
+
                         // Миттєво оновлюємо локальну пам'ять
                         localStorage.setItem('inventory', JSON.stringify(inventory));
                         localStorage.setItem('supplies', JSON.stringify(supplies));
@@ -882,6 +933,96 @@
                     console.error("Помилка завантаження з хмари:", err);
                     if (badge) badge.innerText = originalText;
                 });
+        }
+
+        // НАПОВНЕННЯ ВИПАДАЮЧИХ СПИСКІВ МАГАЗИНІВ
+        function populateStoreSelectors() {
+            let selector = document.getElementById('global-store-selector');
+            if (selector) {
+                let cur = currentStoreId;
+                selector.innerHTML = '<option value="all">🌐 Всі магазини мережі</option>';
+                stores.forEach(st => {
+                    selector.innerHTML += `<option value="${st.id}">🏪 ${st.name}</option>`;
+                });
+                selector.value = cur;
+            }
+            renderStoresTable();
+        }
+
+        // ПЕРЕМИКАННЯ АКТИВНОГО МАГАЗИНУ В ШАПЦІ
+        function changeGlobalStore(storeId) {
+            currentStoreId = storeId;
+            localStorage.setItem('currentStoreId', storeId);
+            updateUI();
+        }
+
+        // ВІДОБРАЖЕННЯ СПИСКУ МАГАЗИНІВ В КАБІНЕТІ АДМІНА
+        function renderStoresTable() {
+            let tbody = document.getElementById('stores-list-table');
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            stores.forEach((st, idx) => {
+                let isMain = (st.id === "store-1");
+                let deleteBtn = isMain 
+                    ? `<small style="color: #888;">Основна філія</small>` 
+                    : `<button onclick="deleteStore('${st.id}')" style="color:red">Видалити</button>`;
+
+                tbody.innerHTML += `<tr>
+                    <td><b>${st.id}</b></td>
+                    <td><b style="color: #1b4332;">🏪 ${st.name}</b></td>
+                    <td>${st.address || '-'}</td>
+                    <td><small style="color: #666;">${st.date || '-'}</small></td>
+                    <td>${deleteBtn}</td>
+                </tr>`;
+            });
+        }
+
+        // ДОДАВАННЯ НОВОГО МАГАЗИНУ
+        function addNewStore() {
+            let nameInput = document.getElementById('new-store-name');
+            let addrInput = document.getElementById('new-store-address');
+            let name = nameInput.value.trim();
+            let address = addrInput.value.trim();
+
+            if (!name) return alert("Введіть назву магазину!");
+
+            let newId = "store-" + (stores.length + 1);
+            let newStoreObj = {
+                id: newId,
+                name: name,
+                address: address || "м. Київ",
+                date: formatDateTime(new Date())
+            };
+
+            stores.push(newStoreObj);
+            localStorage.setItem('stores', JSON.stringify(stores));
+
+            // Відправляємо список магазинів у Google Таблицю
+            sendToGoogle({
+                type: "sync_stores",
+                stores: stores
+            });
+
+            nameInput.value = "";
+            addrInput.value = "";
+            populateStoreSelectors();
+            alert(`🎉 Магазин "${name}" успішно додано до мережі!`);
+        }
+
+        // ВИДАЛЕННЯ МАГАЗИНУ
+        function deleteStore(storeId) {
+            if (storeId === "store-1") return alert("Неможливо видалити основний магазин!");
+            let st = stores.find(s => s.id === storeId);
+            if (confirm(`Видалити магазин "${st.name}" з мережі?`)) {
+                stores = stores.filter(s => s.id !== storeId);
+                localStorage.setItem('stores', JSON.stringify(stores));
+                if (currentStoreId === storeId) {
+                    changeGlobalStore('all');
+                }
+                sendToGoogle({ type: "sync_stores", stores: stores });
+                populateStoreSelectors();
+            }
         }
 
         // ФУНКЦІЇ АВТОРИЗАЦІЇ
@@ -914,6 +1055,7 @@
 
                 // ПРИ ВХОДІ ОДРАЗУ ПІДТЯГУЄМО СВІЖІ ДАНІ З ХМАРИ:
                 loadFromGoogle();
+                populateStoreSelectors();
                 updateStockDateInput();
                 updateSupplyDateInput();
                 updateSalesDateInput();
@@ -1011,6 +1153,10 @@
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
         let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
         let salaryPlans = JSON.parse(localStorage.getItem('salaryPlans')) || [];
+        let stores = JSON.parse(localStorage.getItem('stores')) || [
+            { id: "store-1", name: "Магазин № 1 (Основний)", address: "Головна філія", date: formatDateTime(new Date()) }
+        ];
+        let currentStoreId = localStorage.getItem('currentStoreId') || 'all';
         let history = JSON.parse(localStorage.getItem('history')) || [];
         let supplies = JSON.parse(localStorage.getItem('supplies')) || [];
         let salesLimit = 30;
