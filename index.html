@@ -527,13 +527,75 @@
         </div>
     </div>
 
-    <!-- ВКЛАДКА "ПРОДАВЕЦЬ" (заготовка для майбутніх підрахунків) -->
+    <!-- ВКЛАДКА "ПРОДАВЕЦЬ" (РОБОЧИЙ ЕКРАН ЗАРПЛАТИ ТА МОТИВАЦІЇ) -->
     <div id="seller-tab" class="tab">
-        <div class="section-title">Розділ продавця</div>
-        <div class="table-card" style="padding: 40px; text-align: center; color: #666;">
-            <div style="font-size: 40px; margin-bottom: 10px;">🛒</div>
-            <h3 style="margin: 0; color: #1b4332;">Аналітика та підрахунки продавця</h3>
-            <p style="font-size: 14px; margin-top: 8px;">Цей розділ підготовлено для нових показників та підрахунків зміни.</p>
+        <div class="section-title">Особисті показники та зарплата продавця</div>
+
+        <!-- 3 КАРТКИ ПОТОЧНОЇ ЗМІНИ (СЬОГОДНІ) -->
+        <div class="kpi-row" style="margin-bottom: 25px;">
+            <!-- Каса за сьогодні -->
+            <div class="kpi-card kpi-income">
+                <div class="kpi-header">
+                    <span class="kpi-icon icon-income">🛒</span>
+                    <span>Особиста каса за сьогодні</span>
+                </div>
+                <div class="kpi-value"><span id="seller-today-revenue">0.00</span> грн</div>
+            </div>
+
+            <!-- Зароблено сьогодні -->
+            <div class="kpi-card kpi-profit" style="border-width: 2.5px;">
+                <div class="kpi-header">
+                    <span class="kpi-icon icon-profit">💵</span>
+                    <span>Зарплата за сьогодні: <span id="seller-today-tier-badge" style="font-size: 13px; background: #e8f5e9; padding: 2px 8px; border-radius: 6px;">🥉 Ступінь 1</span></span>
+                </div>
+                <div class="kpi-value" style="color: #006442;"><span id="seller-today-salary">0.00</span> грн</div>
+            </div>
+
+            <!-- Мотивація до наступного рівня -->
+            <div class="kpi-card" style="background: #ffffff; border: 1.5px dashed #006442;">
+                <div class="kpi-header">
+                    <span class="kpi-icon icon-profit">🎯</span>
+                    <span id="seller-next-tier-title">До наступного ступеня</span>
+                </div>
+                <div style="font-size: 18px; font-weight: 700; color: #1b4332; margin-top: 5px;" id="seller-next-tier-diff">
+                    -
+                </div>
+            </div>
+        </div>
+
+        <!-- ФІЛЬТРИ ДЛЯ ТАБЛИЦІ ЗАРПЛАТИ ЗА ДНЯМИ -->
+        <div class="section-title" style="margin-top: 15px;">📅 Історія заробітку за змінами</div>
+        <div class="filter-bar">
+            <!-- Вибір продавця (Адмін може вибрати будь-кого, продавець бачить тільки себе) -->
+            <label style="font-weight: 500;">Продавець:</label>
+            <select id="salary-filter-seller" onchange="renderSellerSalary()" style="min-width: 150px; font-weight: 500;">
+                <option value="">Мій звіт</option>
+            </select>
+
+            <!-- Вибір періоду (Місяць / Рік / Всі) -->
+            <label style="font-weight: 500; margin-left: 10px;">Період:</label>
+            <select id="salary-filter-mode" onchange="updateSalaryFilterInput()">
+                <option value="month" selected>Місяць</option>
+                <option value="year">Рік</option>
+                <option value="all">За весь час</option>
+            </select>
+            <span id="salary-filter-container"></span>
+        </div>
+
+        <!-- ТАБЛИЦЯ ВИПЛАТ ЗА ЗМІНИ -->
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Дата зміни</th>
+                        <th>Продавець</th>
+                        <th>Каса за день</th>
+                        <th>Досягнутий ступінь</th>
+                        <th>Нарахована зарплата</th>
+                    </tr>
+                </thead>
+                <tbody id="seller-salary-list"></tbody>
+            </table>
         </div>
     </div>
         
@@ -957,10 +1019,10 @@
             document.querySelectorAll('.pill-nav button').forEach(b => b.classList.remove('active'));
             if (btn) btn.classList.add('active');
             showTab(tabId);
-            
-            // Якщо відкрили бухгалтерію — одразу запускаємо підрахунок
-            if (tabId === 'accounting') {
-                updateFilterInput();
+
+            // Якщо відкрили вкладку продавця — одразу запускаємо розрахунок зарплати та оновлюємо таблицю
+            if (tabId === 'seller-tab') {
+                updateSalaryFilterInput();
             }
         }
 
@@ -1169,6 +1231,175 @@
 
             loadSalaryPlanInputs();
             alert("🎯 План мотивації успішно збережено! Він діятиме, починаючи з сьогоднішнього дня.");
+        }
+
+        // РОЗРАХУНОК ЗАРПЛАТИ ЗА КАСУ ТА ТАРИФНИЙ ПЛАН
+        function calculateTierResult(revenue, plan) {
+            let t1_sal = plan.t1_salary || 0;
+            let t2_min = plan.t2_min || 0;
+            let t2_sal = plan.t2_salary || 0;
+            let t3_min = plan.t3_min || 0;
+            let t3_sal = plan.t3_salary || 0;
+
+            if (t3_min > 0 && revenue >= t3_min) {
+                return {
+                    tierName: "🥇 Ступінь 3",
+                    salary: t3_sal,
+                    nextInfo: "Максимальний рівень досягнуто! 🚀"
+                };
+            } else if (t2_min > 0 && revenue >= t2_min) {
+                let diff = (t3_min - revenue).toFixed(2);
+                return {
+                    tierName: "🥈 Ступінь 2",
+                    salary: t2_sal,
+                    nextInfo: `Ще ${diff} грн до 🥇 Ступеня 3 (+${t3_sal - t2_sal} грн)`
+                };
+            } else {
+                let diff = (t2_min > 0 ? (t2_min - revenue).toFixed(2) : 0);
+                return {
+                    tierName: "🥉 Ступінь 1",
+                    salary: t1_sal,
+                    nextInfo: t2_min > 0 ? `Ще ${diff} грн до 🥈 Ступеня 2 (+${t2_sal - t1_sal} грн)` : "Базова ставка"
+                };
+            }
+        }
+
+        // ПЕРЕМИКАННЯ ФІЛЬТРА ДАТИ ДЛЯ ЗАРПЛАТИ
+        function updateSalaryFilterInput() {
+            let mode = document.getElementById('salary-filter-mode').value;
+            let container = document.getElementById('salary-filter-container');
+            let now = new Date();
+            let curYear = now.getFullYear();
+            let curMonth = `${curYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            if (mode === 'month') {
+                container.innerHTML = `<input type="month" id="salary-filter-value" value="${curMonth}" onchange="renderSellerSalary()">`;
+            } else if (mode === 'year') {
+                container.innerHTML = `<input type="number" id="salary-filter-value" value="${curYear}" min="2020" max="2099" oninput="renderSellerSalary()">`;
+            } else {
+                container.innerHTML = `<span style="font-size: 13px; color: #777;">Вся історія</span>`;
+            }
+
+            renderSellerSalary();
+        }
+
+        // ВІДОБРАЖЕННЯ ЗАРПЛАТИ ТА ПОКАЗНИКІВ ПРОДАВЦЯ
+        function renderSellerSalary() {
+            let currentUser = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Невідомий';
+            let currentRole = sessionStorage.getItem('userRole') || localStorage.getItem('userRole') || 'seller';
+
+            // Наповнюємо список вибору продавця
+            let sellerSelect = document.getElementById('salary-filter-seller');
+            if (sellerSelect) {
+                let curSel = sellerSelect.value;
+                let sellers = new Set();
+                history.forEach(h => { if (h.seller && h.seller !== '-') sellers.add(h.seller); });
+
+                if (currentRole === 'admin') {
+                    sellerSelect.disabled = false;
+                    sellerSelect.innerHTML = '<option value="">Всі продавці</option>';
+                    sellers.forEach(s => {
+                        sellerSelect.innerHTML += `<option value="${s}">👤 ${s}</option>`;
+                    });
+                    if (curSel) sellerSelect.value = curSel;
+                } else {
+                    // Якщо звичайний продавець — він бачить тільки себе
+                    sellerSelect.innerHTML = `<option value="${currentUser}">👤 ${currentUser}</option>`;
+                    sellerSelect.value = currentUser;
+                    sellerSelect.disabled = true;
+                }
+            }
+
+            let targetSeller = sellerSelect ? sellerSelect.value : currentUser;
+
+            // 1. РОЗРАХУНОК ПОТОЧНОЇ ЗМІНИ (СЬОГОДНІ)
+            let now = new Date();
+            let todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            let todaySellerRev = 0;
+
+            history.forEach(h => {
+                let p = parseDateHelper(h.date);
+                if (p && p.yyyy_mm_dd === todayYMD) {
+                    // Рахуємо касу конкретного авторизованого продавця за сьогодні
+                    if (h.seller && h.seller.toLowerCase() === currentUser.toLowerCase()) {
+                        todaySellerRev += parseFloat(h.totalSum) || (parseFloat(h.qty) * parseFloat(h.pricePerKg)) || 0;
+                    }
+                }
+            });
+
+            let todayPlan = getPlanForDate(todayYMD);
+            let todayResult = calculateTierResult(todaySellerRev, todayPlan);
+
+            let revEl = document.getElementById('seller-today-revenue');
+            if (revEl) revEl.innerText = todaySellerRev.toFixed(2);
+
+            let salEl = document.getElementById('seller-today-salary');
+            if (salEl) salEl.innerText = todayResult.salary.toFixed(2);
+
+            let badgeEl = document.getElementById('seller-today-tier-badge');
+            if (badgeEl) badgeEl.innerText = todayResult.tierName;
+
+            let diffEl = document.getElementById('seller-next-tier-diff');
+            if (diffEl) diffEl.innerText = todayResult.nextInfo;
+
+            // 2. ІСТОРІЯ ЗАРПЛАТ ЗА ДНЯМИ (ГРУПУВАННЯ ЗА ДАТАМИ І ПРОДАВЦЯМИ)
+            let mode = document.getElementById('salary-filter-mode') ? document.getElementById('salary-filter-mode').value : 'month';
+            let filterValEl = document.getElementById('salary-filter-value');
+            let filterVal = filterValEl ? String(filterValEl.value).trim() : "";
+
+            // Збираємо касу: { "2026-11-03_ivan": { date: "03.11.2026", ymd: "2026-11-03", seller: "ivan", revenue: 4500 } }
+            let dailyMap = {};
+
+            history.forEach(h => {
+                let p = parseDateHelper(h.date);
+                if (!p) return;
+
+                let sellerName = h.seller || "Невідомий";
+                if (targetSeller && sellerName.toLowerCase() !== targetSeller.toLowerCase()) return;
+
+                // Фільтр за датою
+                if (mode === 'month' && filterVal && p.yyyy_mm !== filterVal) return;
+                if (mode === 'year' && filterVal && p.year !== filterVal) return;
+
+                let key = `${p.yyyy_mm_dd}_${sellerName.toLowerCase()}`;
+                let lineSum = parseFloat(h.totalSum) || (parseFloat(h.qty) * parseFloat(h.pricePerKg)) || 0;
+
+                if (!dailyMap[key]) {
+                    dailyMap[key] = {
+                        displayDate: p.yyyy_mm_dd.split('-').reverse().join('.'),
+                        ymd: p.yyyy_mm_dd,
+                        seller: sellerName,
+                        revenue: 0
+                    };
+                }
+                dailyMap[key].revenue += lineSum;
+            });
+
+            let tableBody = document.getElementById('seller-salary-list');
+            if (!tableBody) return;
+            tableBody.innerHTML = "";
+
+            let daysKeys = Object.keys(dailyMap).sort().reverse();
+
+            if (daysKeys.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888; padding: 25px;">Записів за вибраний період немає</td></tr>`;
+                return;
+            }
+
+            daysKeys.forEach(k => {
+                let dayData = dailyMap[k];
+                // ЗНАХОДИМО ПЛАН, ЯКИЙ ДІЯВ САМЕ В ТОЙ ДЕНЬ!
+                let dayPlan = getPlanForDate(dayData.ymd);
+                let dayRes = calculateTierResult(dayData.revenue, dayPlan);
+
+                tableBody.innerHTML += `<tr>
+                    <td><b>${dayData.displayDate}</b></td>
+                    <td><b style="color: #1b4332;">👤 ${dayData.seller}</b></td>
+                    <td>${dayData.revenue.toFixed(2)} грн</td>
+                    <td><span style="background: #e8f5e9; color: #006442; font-weight: 600; padding: 3px 8px; border-radius: 6px; font-size: 13px;">${dayRes.tierName}</span></td>
+                    <td style="font-weight: 800; color: #006442; font-size: 15px;">${dayRes.salary.toFixed(2)} грн</td>
+                </tr>`;
+            });
         }
 
         // ДОДАВАННЯ НОВОЇ ВИТРАТИ
@@ -1485,6 +1716,7 @@
 
             document.getElementById('load-more-btn-sales').style.display = (filteredSales.length > salesLimit) ? "inline-block" : "none";
 
+            renderSellerSalary();
             localStorage.setItem('inventory', JSON.stringify(inventory));
             localStorage.setItem('history', JSON.stringify(history));
             localStorage.setItem('supplies', JSON.stringify(supplies));
