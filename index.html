@@ -964,9 +964,10 @@
                 selector.value = cur;
             }
 
-            // 2. Список магазинів для закріплення
+            // 2. Список магазинів для закріплення (додано варіант повного відкріплення)
             if (assignStore) {
                 assignStore.innerHTML = '<option value="">Оберіть магазин</option>';
+                assignStore.innerHTML += '<option value="unassign" style="color: #c62828; font-weight: 700;">🔓 Відкріпити від усіх філій</option>';
                 stores.forEach(st => {
                     assignStore.innerHTML += `<option value="${st.id}">🏪 ${st.name}</option>`;
                 });
@@ -992,20 +993,22 @@
             updateUI();
         }
 
-        // ВІДОБРАЖЕННЯ ТАБЛИЦІ МАГАЗИНІВ ІЗ ЗАКРІПЛЕНИМИ ПРОДАВЦЯМИ
+        // ВІДОБРАЖЕННЯ ТАБЛИЦІ МАГАЗИНІВ З ЧІТКИМИ КНОПКАМИ ВІДКРІПЛЕННЯ
         function renderStoresTable() {
             let tbody = document.getElementById('stores-list-table');
             if (!tbody) return;
             tbody.innerHTML = "";
 
             stores.forEach((st) => {
-                // Малюємо бейджі закріплених продавців з кнопкою відкріплення [x]
-                let sellersHTML = "-";
+                let sellersHTML = `<span style="color: #888; font-size: 13px;">Немає закріплених</span>`;
+                
                 if (st.sellers && st.sellers.length > 0) {
                     sellersHTML = st.sellers.map(sellerName => `
-                        <span style="background: #e8f5e9; color: #006442; padding: 3px 8px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin: 2px;">
+                        <span style="background: #e8f5e9; border: 1px solid #c8e6c9; color: #006442; padding: 4px 8px; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; margin: 3px;">
                             👤 ${sellerName}
-                            <span onclick="unassignSeller('${st.id}', '${sellerName}')" style="cursor: pointer; color: #c62828; font-weight: bold; margin-left: 3px;" title="Відкріпити">✖</span>
+                            <button type="button" onclick="unassignSeller('${st.id}', '${sellerName}')" 
+                                    style="background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; border-radius: 4px; padding: 2px 6px; font-size: 11px; cursor: pointer; font-weight: bold;" 
+                                    title="Відкріпити продавця від цієї філії">Відкріпити ✖</button>
                         </span>
                     `).join("");
                 }
@@ -1079,23 +1082,31 @@
             alert(`🎉 Магазин "${name}" успішно додано до мережі!`);
         }
 
-        // ЗАКРІПЛЕННЯ ПРОДАВЦЯ ЗА МАГАЗИНОМ
+        // ЗАКРІПЛЕННЯ АБО ПОВНЕ ВІДКРІПЛЕННЯ ПРОДАВЦЯ
         function assignSellerToStore() {
             let seller = document.getElementById('assign-seller-select').value;
             let storeId = document.getElementById('assign-store-select').value;
 
             if (!seller || !storeId) {
-                return alert("Оберіть і продавця, і магазин!");
+                return alert("Оберіть і продавця, і дію/магазин!");
             }
 
-            // Відкріплюємо продавця від будь-якого іншого магазину (щоб не було дублювання)
+            // Завжди знімаємо продавця з усіх точок
             stores.forEach(st => {
                 if (st.sellers) {
                     st.sellers = st.sellers.filter(s => s.toLowerCase() !== seller.toLowerCase());
                 }
             });
 
-            // Закріплюємо за обраним магазином
+            // Якщо обрано пункт "Відкріпити від усіх філій":
+            if (storeId === "unassign") {
+                localStorage.setItem('stores', JSON.stringify(stores));
+                sendToGoogle({ type: "sync_stores", stores: stores });
+                populateStoreSelectors();
+                return alert(`🔓 Продавця ${seller} успішно відкріплено від усіх магазинів!`);
+            }
+
+            // Якщо обрано конкретний магазин — закріплюємо:
             let targetStore = stores.find(st => st.id === storeId);
             if (targetStore) {
                 if (!targetStore.sellers) targetStore.sellers = [];
