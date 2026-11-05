@@ -817,32 +817,45 @@
             <!-- ================= 5. БЛОК: КЕРУВАННЯ МЕРЕЖЕЮ МАГАЗИНІВ ================= -->
             <div class="admin-section-box">
                 <div class="admin-section-header">
-                    <span>🏢 Керування мережею магазинів</span>
+                    <span>🏢 Керування мережею та закріплення продавців</span>
                     <span style="font-size: 13px; font-weight: 600; color: #006442; background: #e8f5e9; padding: 5px 12px; border-radius: 8px;">
                         Мережевий режим
                     </span>
                 </div>
                 
                 <p style="font-size: 14px; color: #666; margin-top: 0; margin-bottom: 20px;">
-                    Додавайте нові філії та торгові точки. Ви зможете перемикатися між ними в шапці сайту та аналізувати результати кожного магазину окремо.
+                    Додавайте нові філії та закріплюйте за ними працівників. Продавець автоматично потраплятиме у свій магазин без доступу до інших точок.
                 </p>
 
-                <!-- ПАНЕЛЬ ДОДАВАННЯ МАГАЗИНУ -->
+                <!-- 1. ПАНЕЛЬ ДОДАВАННЯ МАГАЗИНУ -->
                 <div class="filter-bar" style="gap: 10px; flex-wrap: wrap;">
                     <input type="text" id="new-store-name" placeholder="Назва магазину (напр: Філія №2 'Центр')" style="min-width: 260px;">
                     <input type="text" id="new-store-address" placeholder="Адреса або опис (напр: вул. Хрещатик, 10)" style="min-width: 260px;">
                     <button class="primary-btn" onclick="addNewStore()" style="padding: 9px 20px;">+ Додати магазин</button>
                 </div>
 
-                <!-- ТАБЛИЦЯ СПИСКУ МАГАЗИНІВ -->
-                <div class="table-card" style="margin-top: 15px;">
+                <!-- 2. ПАНЕЛЬ ЗАКРІПЛЕННЯ ПРОДАВЦЯ ЗА МАГАЗИНОМ -->
+                <div style="background: #fafaf7; border: 1.5px dashed #dcdbd6; border-radius: 12px; padding: 12px 16px; margin-top: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span style="font-weight: 600; color: #1b4332; font-size: 14px;">🔗 Закріпити продавця:</span>
+                    <select id="assign-seller-select" style="min-width: 150px; font-weight: 500;">
+                        <option value="">Оберіть продавця</option>
+                    </select>
+                    <span style="color: #888;">➔</span>
+                    <select id="assign-store-select" style="min-width: 170px; font-weight: 500;">
+                        <option value="">Оберіть магазин</option>
+                    </select>
+                    <button class="primary-btn" onclick="assignSellerToStore()" style="background: #2e7d32; padding: 8px 18px; font-size: 13px;">🔗 Закріпити</button>
+                </div>
+
+                <!-- ТАБЛИЦЯ СПИСКУ МАГАЗИНІВ ТА ЗАКРІПЛЕНИХ ПРАЦІВНИКІВ -->
+                <div class="table-card" style="margin-top: 20px;">
                     <table>
                         <thead>
                             <tr>
                                 <th>ID</th>
                                 <th>Назва філії</th>
                                 <th>Адреса / Примітка</th>
-                                <th>Дата відкриття</th>
+                                <th>Закріплені продавці</th>
                                 <th>Дії</th>
                             </tr>
                         </thead>
