@@ -1297,27 +1297,32 @@
             document.getElementById('avg-period-revenue').innerText = totalRevenue.toFixed(2);
         }
 
-        // ВІДОБРАЖЕННЯ СПИСКУ ВИТРАТ
+        // ВІДОБРАЖЕННЯ СПИСКУ ВИТРАТ (З ФІЛЬТРАЦІЄЮ ЗА АКТИВНИМ МАГАЗИНОМ)
         function renderExpenses() {
             let list = document.getElementById('expenses-list');
             if (!list) return;
             list.innerHTML = "";
 
-            // Рахуємо загальну суму всіх витрат
+            // Фільтруємо витрати: якщо вибрано конкретний магазин, показуємо тільки його
+            let filteredExp = (currentStoreId !== 'all') 
+                ? expenses.filter(e => (e.store || 'store-1') === currentStoreId) 
+                : expenses;
+
+            // Рахуємо суму витрат для обраного магазину
             let totalSum = 0;
-            expenses.forEach(e => {
+            filteredExp.forEach(e => {
                 totalSum += parseFloat(e.amount) || 0;
             });
             let sumEl = document.getElementById('total-expenses-sum');
             if (sumEl) sumEl.innerText = totalSum.toFixed(2);
 
-            if (expenses.length === 0) {
-                list.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888; padding: 20px;">Витрат ще не додано</td></tr>`;
+            if (filteredExp.length === 0) {
+                list.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888; padding: 20px;">Витрат для цього магазину ще не додано</td></tr>`;
                 return;
             }
 
-            expenses.slice().reverse().map((exp, index) => {
-                let realIndex = expenses.length - 1 - index;
+            filteredExp.slice().reverse().map((exp, index) => {
+                let realIndex = expenses.indexOf(exp); // знаходимо точний індекс в оригінальній базі
                 list.innerHTML += `<tr>
                     <td><small style="color: #555; font-weight: 500;">${exp.date}</small></td>
                     <td><b>${exp.category.toUpperCase()}</b></td>
@@ -1587,23 +1592,25 @@
 
             let date = formatDateTime(new Date());
             let currentUser = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Admin';
+            let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'store-1';
 
             expenses.push({
                 date: date,
                 category: category,
                 amount: amount,
-                user: currentUser
+                user: currentUser,
+                store: activeStore // <-- ДОДАНО
             });
 
             localStorage.setItem('expenses', JSON.stringify(expenses));
 
-            // Відправляємо в Google Таблицю
             sendToGoogle({
                 type: "expense",
                 date: date,
                 category: category,
                 amount: amount,
-                user: currentUser
+                user: currentUser,
+                store: activeStore // <-- ДОДАНО
             });
 
             catInput.value = "";
@@ -1798,6 +1805,7 @@
 
             document.getElementById('supply-list').innerHTML = supplies.slice().reverse()
                 .filter(s => {
+                    if (currentStoreId !== 'all' && (s.store || 'store-1') !== currentStoreId) return false;
                     // 1. Фільтрація за номером завозу:
                     if (filterSupplyBatch && String(s.batchNum) !== String(filterSupplyBatch)) return false;
 
@@ -1848,6 +1856,7 @@
             let salesDateVal = salesDateEl ? String(salesDateEl.value).trim() : "";
 
             let filteredSales = history.slice().reverse().filter(h => {
+                if (currentStoreId !== 'all' && (h.store || 'store-1') !== currentStoreId) return false;
                 // 1. Фільтр товару
                 if (filterSalesItem && h.item !== filterSalesItem) return false;
                 // 2. Фільтр продавця
@@ -1970,6 +1979,7 @@
             // Отримуємо унікальний номер завозу (з урахуванням звільнених)
             let batchNumber = getNextSupplyBatchNumber();
             let date = formatDateTime(new Date());
+            let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'store-1';
 
             itemsToSupply.forEach(pos => {
                 if (!inventory[pos.item]) {
@@ -1985,7 +1995,8 @@
                     item: pos.item,
                     qty: pos.qty,
                     price: pos.price,
-                    sellPrice: pos.sellPrice
+                    sellPrice: pos.sellPrice,
+                    store: activeStore // <-- ДОДАНО
                 });
 
                 sendToGoogle({
@@ -1996,7 +2007,8 @@
                     qty: pos.qty,
                     price: pos.price,
                     sellPrice: pos.sellPrice,
-                    total: pos.total
+                    total: pos.total,
+                    store: activeStore // <-- ДОДАНО
                 });
             });
 
@@ -2117,6 +2129,7 @@
 
             let date = formatDateTime(new Date());
             let currentSeller = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Невідомий';
+            let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'store-1';
             let payType = document.getElementById('sell-pay-type').value;
             
             // Єдиний номер чека для всіх товарів у цій покупці
@@ -2133,7 +2146,8 @@
                     totalSum: pos.totalSum,
                     payType: payType,
                     date: date,
-                    seller: currentSeller
+                    seller: currentSeller,
+                    store: activeStore // <-- ДОДАНО
                 });
 
                 sendToGoogle({
@@ -2144,7 +2158,8 @@
                     pricePerKg: pos.pricePerKg,
                     totalSum: pos.totalSum.toFixed(2),
                     payType: payType,
-                    seller: currentSeller
+                    seller: currentSeller,
+                    store: activeStore // <-- ДОДАНО
                 });
             });
 
