@@ -956,26 +956,48 @@
             updateUI();
         }
 
-        // ВІДОБРАЖЕННЯ СПИСКУ МАГАЗИНІВ В КАБІНЕТІ АДМІНА
+        // ВІДОБРАЖЕННЯ СПИСКУ МАГАЗИНІВ З КНОПКАМИ "РЕД." ТА "ВИДАЛИТИ"
         function renderStoresTable() {
             let tbody = document.getElementById('stores-list-table');
             if (!tbody) return;
             tbody.innerHTML = "";
 
-            stores.forEach((st, idx) => {
-                let isMain = (st.id === "store-1");
-                let deleteBtn = isMain 
-                    ? `<small style="color: #888;">Основна філія</small>` 
-                    : `<button onclick="deleteStore('${st.id}')" style="color:red">Видалити</button>`;
-
+            stores.forEach((st) => {
                 tbody.innerHTML += `<tr>
                     <td><b>${st.id}</b></td>
                     <td><b style="color: #1b4332;">🏪 ${st.name}</b></td>
                     <td>${st.address || '-'}</td>
                     <td><small style="color: #666;">${st.date || '-'}</small></td>
-                    <td>${deleteBtn}</td>
+                    <td>
+                        <button onclick="editStore('${st.id}')">Ред.</button>
+                        <button onclick="deleteStore('${st.id}')" style="color:red">Видалити</button>
+                    </td>
                 </tr>`;
             });
+        }
+
+        // РЕДАГУВАННЯ МАГАЗИНУ (НАЗВА ТА АДРЕСА)
+        function editStore(storeId) {
+            let st = stores.find(s => s.id === storeId);
+            if (!st) return;
+
+            let newName = prompt(`Введіть нову назву для магазину (${st.name}):`, st.name);
+            if (newName === null || !newName.trim()) return;
+
+            let newAddress = prompt(`Введіть адресу або примітку:`, st.address || "");
+            if (newAddress === null) return;
+
+            st.name = newName.trim();
+            st.address = newAddress.trim() || "-";
+
+            localStorage.setItem('stores', JSON.stringify(stores));
+
+            // Миттєво синхронізуємо зміни з Google Таблицею
+            sendToGoogle({ type: "sync_stores", stores: stores });
+
+            populateStoreSelectors();
+            updateUI();
+            alert("✅ Дані магазину успішно оновлено!");
         }
 
         // ДОДАВАННЯ НОВОГО МАГАЗИНУ
@@ -1010,18 +1032,29 @@
             alert(`🎉 Магазин "${name}" успішно додано до мережі!`);
         }
 
-        // ВИДАЛЕННЯ МАГАЗИНУ
+        // ВИДАЛЕННЯ МАГАЗИНУ З ПЕРЕВІРКОЮ
         function deleteStore(storeId) {
-            if (storeId === "store-1") return alert("Неможливо видалити основний магазин!");
+            if (stores.length <= 1) {
+                return alert("⚠️ У мережі повинен залишатися хоча б один магазин! Неможливо видалити останній.");
+            }
+
             let st = stores.find(s => s.id === storeId);
-            if (confirm(`Видалити магазин "${st.name}" з мережі?`)) {
+            if (!st) return;
+
+            if (confirm(`Ви дійсно бажаєте видалити магазин "${st.name}" з мережі?`)) {
                 stores = stores.filter(s => s.id !== storeId);
                 localStorage.setItem('stores', JSON.stringify(stores));
+
+                // Якщо був вибраний цей магазин у шапці — повертаємо на "Всі магазини"
                 if (currentStoreId === storeId) {
                     changeGlobalStore('all');
                 }
+
+                // Видаляємо також із Google Таблиці
                 sendToGoogle({ type: "sync_stores", stores: stores });
+
                 populateStoreSelectors();
+                alert(`🗑️ Магазин "${st.name}" видалено.`);
             }
         }
 
