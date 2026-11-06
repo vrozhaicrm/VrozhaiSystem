@@ -2132,11 +2132,26 @@
 
             itemsToSupply.forEach(pos => {
                 if (!inventory[pos.item]) {
-                    inventory[pos.item] = { kg: 0, buyPrice: pos.price, sellPrice: pos.sellPrice, critKg: 5 };
+                    inventory[pos.item] = { kg: 0, buyPrice: pos.price, sellPrice: pos.sellPrice, critKg: 5, batches: [] };
                 }
+                if (!inventory[pos.item].batches) {
+                    inventory[pos.item].batches = [];
+                    // Якщо вже були залишки без партій — записуємо їх як першу партію
+                    if (inventory[pos.item].kg > 0) {
+                        inventory[pos.item].batches.push({ qty: inventory[pos.item].kg, buyPrice: inventory[pos.item].buyPrice || pos.price });
+                    }
+                }
+
                 inventory[pos.item].kg += pos.qty;
                 inventory[pos.item].buyPrice = pos.price;
-                inventory[pos.item].sellPrice = pos.sellPrice;
+                inventory[pos.item].sellPrice = pos.sellPrice; // завжди остання найсвіжіша рек. ціна!
+
+                // Додаємо нову партію в кінець черги
+                inventory[pos.item].batches.push({
+                    batchNum: batchNumber,
+                    qty: pos.qty,
+                    buyPrice: pos.price
+                });
 
                 supplies.push({
                     batchNum: batchNumber,
@@ -2285,18 +2300,46 @@
             let checkId = 'ЧЕК-' + Date.now().toString().slice(-5);
 
             itemsToSell.forEach(pos => {
-                inventory[pos.item].kg -= pos.qty;
-                
+                let remainingToDeduct = pos.qty;
+                let calculatedCost = 0; // точна собівартість закупівлі за методом FIFO
+
+                let invItem = inventory[pos.item];
+                if (!invItem.batches || invItem.batches.length === 0) {
+                    invItem.batches = [{ qty: invItem.kg, buyPrice: invItem.buyPrice || 0 }];
+                }
+
+                // Списуємо вагу по черзі партій (FIFO)
+                while (remainingToDeduct > 0 && invItem.batches.length > 0) {
+                    let firstBatch = invItem.batches[0];
+                    if (firstBatch.qty <= remainingToDeduct) {
+                        calculatedCost += firstBatch.qty * firstBatch.buyPrice;
+                        remainingToDeduct -= firstBatch.qty;
+                        invItem.batches.shift(); // перша партія повністю закінчилася
+                    } else {
+                        calculatedCost += remainingToDeduct * firstBatch.buyPrice;
+                        firstBatch.qty -= remainingToDeduct;
+                        remainingToDeduct = 0; // списали все, що потрібно
+                    }
+                }
+
+                // Якщо товару було продано більше ніж в партіях (страховка)
+                if (remainingToDeduct > 0) {
+                    calculatedCost += remainingToDeduct * (invItem.buyPrice || 0);
+                }
+
+                invItem.kg -= pos.qty;
+
                 history.push({
                     checkId: checkId,
                     item: pos.item,
                     qty: pos.qty,
                     pricePerKg: pos.pricePerKg,
                     totalSum: pos.totalSum,
+                    cost: calculatedCost, // 👈 ФІКСОВАНА ТОЧНА СОБІВАРТІСТЬ FIFO
                     payType: payType,
                     date: date,
                     seller: currentSeller,
-                    store: activeStore // <-- ДОДАНО
+                    store: activeStore
                 });
 
                 sendToGoogle({
@@ -2551,7 +2594,10 @@
                     let currentQty = parseFloat(h.qty) || 0;
                     
                     income += currentSaleSum;
-                    expense += (currentQty * buyPrice);
+                    
+                    // ТОЧНИЙ FIFO РОЗРАХУНОК: беремо зафіксовану собівартість партії, або стару формулу як страховку
+                    let realCost = (h.cost !== undefined && h.cost !== null) ? parseFloat(h.cost) : (currentQty * buyPrice);
+                    expense += realCost;
                     
                     list.innerHTML += `<tr>
                         <td><b>${h.item.toUpperCase()}</b></td>
