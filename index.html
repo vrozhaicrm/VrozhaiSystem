@@ -653,6 +653,7 @@
                 </div>
 
                 <div class="kpi-row" style="margin-bottom: 0;">
+                    <!-- 1. Середній чек -->
                     <div class="kpi-card kpi-profit" style="border-width: 2.5px;">
                         <div class="kpi-header">
                             <span class="kpi-icon icon-profit">🧾</span>
@@ -661,14 +662,25 @@
                         <div class="kpi-value" style="color: #006442;"><span id="avg-check-value">0.00</span> грн</div>
                     </div>
 
+                    <!-- 2. Кількість клієнтів (1 чек = 1 клієнт) -->
                     <div class="kpi-card kpi-income">
                         <div class="kpi-header">
-                            <span class="kpi-icon icon-income">🛍️</span>
-                            <span>Кількість покупок (чеків)</span>
+                            <span class="kpi-icon icon-income">👥</span>
+                            <span>Кількість клієнтів</span>
                         </div>
                         <div class="kpi-value"><span id="total-checks-count">0</span></div>
                     </div>
 
+                    <!-- 3. Всього продано позицій (товарів) -->
+                    <div class="kpi-card kpi-income">
+                        <div class="kpi-header">
+                            <span class="kpi-icon icon-income">📦</span>
+                            <span>Продано позицій (товарів)</span>
+                        </div>
+                        <div class="kpi-value"><span id="total-items-count">0</span></div>
+                    </div>
+
+                    <!-- 4. Каса за період -->
                     <div class="kpi-card kpi-income">
                         <div class="kpi-header">
                             <span class="kpi-icon icon-income">💰</span>
@@ -1404,17 +1416,17 @@
             calcAverageCheck();
         }
 
-        // РОЗРАХУНОК СЕРЕДНЬОГО ЧЕКА
+        // РОЗРАХУНОК СЕРЕДНЬОГО ЧЕКА, КЛІЄНТІВ ТА ПОЗИЦІЙ
         function calcAverageCheck() {
             let mode = document.getElementById('avg-filter-mode').value;
             let inputEl = document.getElementById('avg-filter-value');
             let val = inputEl ? String(inputEl.value).trim() : "";
 
-            let checksMap = {}; // унікальні чеки: { checkId: totalSum }
+            let checksMap = {}; // унікальні клієнти/чеки: { checkId: totalSum }
             let totalRevenue = 0;
+            let totalItemsSold = 0; // загальна кількість пробитих товарних позицій
 
             history.forEach((h, index) => {
-                // Якщо за весь час — беремо всі
                 let match = (mode === 'all');
 
                 if (!match) {
@@ -1427,7 +1439,10 @@
                 }
 
                 if (match) {
-                    // Єдиний ідентифікатор покупки (checkId або дата+продавець для старих записів)
+                    // Фільтрація за магазином (якщо обрано не "Всі")
+                    if (currentStoreId !== 'all' && (h.store || 'store-1') !== currentStoreId) return;
+
+                    // Унікальний номер чека (один покупець/клієнт)
                     let checkKey = h.checkId || (h.date + '_' + (h.seller || 'admin') + '_' + (h.payType || ''));
                     let lineSum = parseFloat(h.totalSum) || (parseFloat(h.qty) * parseFloat(h.pricePerKg)) || 0;
 
@@ -1436,14 +1451,20 @@
                     }
                     checksMap[checkKey] += lineSum;
                     totalRevenue += lineSum;
+                    totalItemsSold++; // збільшуємо лічильник позицій товару
                 }
             });
 
-            let totalChecks = Object.keys(checksMap).length;
-            let avgCheck = (totalChecks > 0) ? (totalRevenue / totalChecks) : 0;
+            // 1 чек (навіть з 5 товарами) = 1 КЛІЄНТ!
+            let totalClients = Object.keys(checksMap).length;
+            let avgCheck = (totalClients > 0) ? (totalRevenue / totalClients) : 0;
 
             document.getElementById('avg-check-value').innerText = avgCheck.toFixed(2);
-            document.getElementById('total-checks-count').innerText = totalChecks;
+            document.getElementById('total-checks-count').innerText = totalClients; // Кількість клієнтів
+            
+            let itemsEl = document.getElementById('total-items-count');
+            if (itemsEl) itemsEl.innerText = totalItemsSold; // Продано позицій
+
             document.getElementById('avg-period-revenue').innerText = totalRevenue.toFixed(2);
         }
 
