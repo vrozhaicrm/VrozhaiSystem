@@ -979,6 +979,7 @@
                 let sellers = new Set();
                 history.forEach(h => { if (h.seller && h.seller !== '-') sellers.add(h.seller); });
                 sellers.forEach(s => {
+                    if (s.toLowerCase() === 'admin' || s.toLowerCase() === 'адмін') return; // 👈 ХОВАЄМО АДМІНА
                     assignSeller.innerHTML += `<option value="${s}">👤 ${s}</option>`;
                 });
             }
@@ -1618,6 +1619,7 @@
                     sellerSelect.disabled = false;
                     sellerSelect.innerHTML = '<option value="">Всі продавці</option>';
                     sellers.forEach(s => {
+                        if (s.toLowerCase() === 'admin' || s.toLowerCase() === 'адмін') return; // 👈 ХОВАЄМО АДМІНА
                         sellerSelect.innerHTML += `<option value="${s}">👤 ${s}</option>`;
                     });
                     if (curSel) sellerSelect.value = curSel;
@@ -1672,6 +1674,7 @@
                 if (!p) return;
 
                 let sellerName = h.seller || "Невідомий";
+                if (sellerName.toLowerCase() === 'admin' || sellerName.toLowerCase() === 'адмін') return; // 👈 АДМІНУ ЗАРПЛАТА НЕ РАХУЄТЬСЯ
                 if (targetSeller && sellerName.toLowerCase() !== targetSeller.toLowerCase()) return;
 
                 // ФІЛЬТРАЦІЯ ЗА ДІАПАЗОНОМ ДАТ "З" І "ПО"
@@ -1854,6 +1857,7 @@
                 history.forEach(h => { if (h.seller && h.seller !== '-') sellers.add(h.seller); });
                 sellerEl.innerHTML = '<option value="">Всі продавці</option>';
                 sellers.forEach(s => {
+                    if (s.toLowerCase() === 'admin' || s.toLowerCase() === 'адмін') return; // 👈 ХОВАЄМО АДМІНА
                     sellerEl.innerHTML += `<option value="${s}">👤 ${s}</option>`;
                 });
                 if (curSeller) sellerEl.value = curSeller;
