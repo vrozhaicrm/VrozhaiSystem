@@ -1493,13 +1493,14 @@
             }
 
             filteredExp.slice().reverse().map((exp, index) => {
-                let realIndex = expenses.indexOf(exp); // знаходимо точний індекс в оригінальній базі
-                list.innerHTML += `<tr>
-                    <td><small style="color: #555; font-weight: 500;">${exp.date}</small></td>
+                let realIndex = expenses.indexOf(exp);
+                return list.innerHTML += `<tr>
+                    <td><small style="color: #555; font-weight: 500;">${formatDateTime(exp.date)}</small></td>
                     <td><b>${exp.category.toUpperCase()}</b></td>
                     <td style="font-weight: 700; color: #c62828;">-${parseFloat(exp.amount).toFixed(2)} грн</td>
                     <td><b style="color: #1b4332;">👤 ${exp.user}</b></td>
                     <td>
+                        <button onclick="editExpense(${realIndex})">Ред.</button>
                         <button onclick="deleteExpense(${realIndex})" style="color:red">Видалити</button>
                     </td>
                 </tr>`;
@@ -1803,6 +1804,32 @@
                 
                 renderExpenses();
             }
+        }
+
+        // РЕДАГУВАННЯ ВИТРАТИ (НАЗВА ТА СУМА)
+        function editExpense(index) {
+            let exp = expenses[index];
+            if (!exp) return;
+
+            let newCategory = prompt(`Введіть нову назву витрати:`, exp.category);
+            if (newCategory === null || !newCategory.trim()) return;
+
+            let newAmount = prompt(`Введіть нову суму витрати (грн):`, exp.amount);
+            if (newAmount === null || isNaN(parseFloat(newAmount)) || parseFloat(newAmount) <= 0) {
+                return alert("Будь ласка, вкажіть коректну суму більше 0!");
+            }
+
+            exp.category = newCategory.trim();
+            exp.amount = parseFloat(newAmount);
+
+            // Зберігаємо в браузер
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+
+            // Миттєво синхронізуємо оновлені дані з Google Таблицею
+            sendToGoogle({ type: "sync_expenses", expenses: expenses });
+
+            renderExpenses();
+            alert("✅ Витрату успішно оновлено!");
         }
 
         // ПЕРЕМИКАННЯ РЕЖИМУ ВІДОБРАЖЕННЯ ПРОДАЖІВ (СЬОГОДНІ / ВСЯ ІСТОРІЯ)
