@@ -991,7 +991,7 @@
                 let sellers = new Set();
                 history.forEach(h => { if (h.seller && h.seller !== '-') sellers.add(h.seller); });
                 sellers.forEach(s => {
-                    if (s.toLowerCase() === 'admin' || s.toLowerCase() === 'адмін') return; // 👈 ХОВАЄМО АДМІНА
+                    if (isAdminUser(s)) return;
                     assignSeller.innerHTML += `<option value="${s}">👤 ${s}</option>`;
                 });
             }
@@ -1641,7 +1641,7 @@
                     sellerSelect.disabled = false;
                     sellerSelect.innerHTML = '<option value="">Всі продавці</option>';
                     sellers.forEach(s => {
-                        if (s.toLowerCase() === 'admin' || s.toLowerCase() === 'адмін') return; // 👈 ХОВАЄМО АДМІНА
+                        if (isAdminUser(s)) return;
                         sellerSelect.innerHTML += `<option value="${s}">👤 ${s}</option>`;
                     });
                     if (curSel) sellerSelect.value = curSel;
@@ -1696,7 +1696,7 @@
                 if (!p) return;
 
                 let sellerName = h.seller || "Невідомий";
-                if (sellerName.toLowerCase() === 'admin' || sellerName.toLowerCase() === 'адмін') return; // 👈 АДМІНУ ЗАРПЛАТА НЕ РАХУЄТЬСЯ
+                if (isAdminUser(sellerName)) return;
                 if (targetSeller && sellerName.toLowerCase() !== targetSeller.toLowerCase()) return;
 
                 // ФІЛЬТРАЦІЯ ЗА ДІАПАЗОНОМ ДАТ "З" І "ПО"
@@ -1905,7 +1905,7 @@
                 history.forEach(h => { if (h.seller && h.seller !== '-') sellers.add(h.seller); });
                 sellerEl.innerHTML = '<option value="">Всі продавці</option>';
                 sellers.forEach(s => {
-                    if (s.toLowerCase() === 'admin' || s.toLowerCase() === 'адмін') return; // 👈 ХОВАЄМО АДМІНА
+                    if (isAdminUser(s)) return; //
                     sellerEl.innerHTML += `<option value="${s}">👤 ${s}</option>`;
                 });
                 if (curSeller) sellerEl.value = curSeller;
@@ -2582,6 +2582,15 @@
             }
 
             return s;
+        }
+
+        // ПЕРЕВІРКА, ЧИ Є КОРИСТУВАЧ АДМІНІСТРАТОРОМ
+        function isAdminUser(username) {
+            if (!username) return false;
+            let u = String(username).trim().toLowerCase();
+            // Вказуємо нікнейми адмінів (нечутливо до великих/малих літер):
+            let adminList = ['dmitriy', 'bizonboss', 'admin', 'адмін'];
+            return adminList.includes(u);
         }
 
         // РОЗУМНЕ РОЗПІЗНАВАННЯ ДАТИ
