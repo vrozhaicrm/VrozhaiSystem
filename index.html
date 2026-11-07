@@ -707,18 +707,25 @@
 
                 <!-- ПАНЕЛЬ НАЛАШТУВАННЯ МІСЯЧНИХ ВИТРАТ (ОРЕНДА, ПОДАТКИ, РОБОЧІ ДНІ) -->
                 <div id="monthly-budget-panel" style="display: none; background: #fafaf7; border: 1.5px dashed #006442; border-radius: 14px; padding: 20px; margin-bottom: 25px;">
-                    <div style="font-weight: 700; color: #1b4332; font-size: 16px; margin-bottom: 12px;">
-                        💼 Щомісячні витрати філії на <span id="budget-current-month-label">поточний місяць</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                        <div style="font-weight: 700; color: #1b4332; font-size: 16px; display: flex; align-items: center; gap: 10px;">
+                            <span>💼 Налаштування витрат на місяць:</span>
+                            <!-- КАЛЕНДАР ДЛЯ ВИБОРУ БУДЬ-ЯКОГО МІСЯЦЯ (МИНУЛОГО / ПОТОЧНОГО) -->
+                            <input type="month" id="budget-month-picker" onchange="renderMonthlyBudgetPanel()" style="font-weight: 700; font-size: 14px; padding: 5px 10px;">
+                            <span id="budget-current-store-label" style="font-size: 13px; color: #666; font-weight: 500;"></span>
+                        </div>
                     </div>
                     
-                    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
-                        <label style="font-weight: 600; font-size: 14px;">Кількість робочих днів у місяці:</label>
-                        <input type="number" id="budget-work-days" placeholder="напр: 26" style="width: 100px; font-weight: 700;" min="1" max="31" onchange="saveMonthlyWorkDays()">
-                        <span id="daily-overhead-badge" style="font-size: 13px; font-weight: 700; color: #c62828; background: #ffebee; border: 1px solid #ffcdd2; padding: 6px 12px; border-radius: 8px;">
+                    <!-- БЛОК ВКАЗАННЯ ТА ЗБЕРЕЖЕННЯ РОБОЧИХ ДНІВ -->
+                    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; background: #ffffff; border: 1px solid #e0dfd9; padding: 12px 16px; border-radius: 10px;">
+                        <label style="font-weight: 600; font-size: 14px;">Кількість робочих днів у цьому місяці:</label>
+                        <input type="number" id="budget-work-days" placeholder="напр: 26" style="width: 90px; font-weight: 700;" min="1" max="31">
+                        <button type="button" class="primary-btn" onclick="saveMonthlyWorkDays()" style="padding: 7px 16px; font-size: 13px;">💾 Зберегти дні</button>
+
+                        <span id="daily-overhead-badge" style="font-size: 13px; font-weight: 700; color: #c62828; background: #ffebee; border: 1px solid #ffcdd2; padding: 6px 12px; border-radius: 8px; margin-left: auto;">
                             Частка на 1 робочий день: 0.00 грн/день
                         </span>
                     </div>
-
                     <!-- Форма додавання місячного платежу -->
                     <div class="filter-bar" style="gap: 10px; background: #ffffff; border: 1px solid #e0dfd9; margin-bottom: 12px;">
                         <input type="text" id="budget-item-name" placeholder="Назва витрати (напр: Оренда, Податки, Охорона)" style="min-width: 260px;">
@@ -2686,24 +2693,32 @@
             }
         }
 
-        // ОТРИМАННЯ АКТИВНОГО МІСЯЦЯ ДЛЯ БЮДЖЕТУ
         function getSelectedMonthKey() {
-            let filterVal = document.getElementById('filter-value') ? document.getElementById('filter-value').value : "";
-            let now = new Date();
-            let ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            if (filterVal) {
-                if (filterVal.length === 7) ym = filterVal; // якщо режим "Місяць"
-                else if (filterVal.length === 10) ym = filterVal.slice(0, 7); // якщо режим "День"
+            let picker = document.getElementById('budget-month-picker');
+            let ym = picker && picker.value ? picker.value : "";
+            
+            // Якщо ще не обрано в календарі — беремо поточний або з фільтра звіту
+            if (!ym) {
+                let filterVal = document.getElementById('filter-value') ? document.getElementById('filter-value').value : "";
+                let now = new Date();
+                ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                if (filterVal) {
+                    if (filterVal.length === 7) ym = filterVal;
+                    else if (filterVal.length === 10) ym = filterVal.slice(0, 7);
+                }
+                if (picker) picker.value = ym;
             }
             let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'store-1';
             return { ymdMonth: ym, storeKey: `${ym}_${activeStore}`, store: activeStore };
         }
 
-        // ВІДОБРАЖЕННЯ НАЛАШТУВАНЬ МІСЯЧНИХ ВИТРАТ
         function renderMonthlyBudgetPanel() {
             let ctx = getSelectedMonthKey();
-            let label = document.getElementById('budget-current-month-label');
-            if (label) label.innerText = `${ctx.ymdMonth} (Філія: ${ctx.store})`;
+            let picker = document.getElementById('budget-month-picker');
+            if (picker && picker.value !== ctx.ymdMonth) picker.value = ctx.ymdMonth;
+
+            let storeLabel = document.getElementById('budget-current-store-label');
+            if (storeLabel) storeLabel.innerText = `(Філія: ${ctx.store})`;
 
             if (!monthlyBudgets[ctx.storeKey]) {
                 monthlyBudgets[ctx.storeKey] = { month: ctx.ymdMonth, store: ctx.store, workDays: 26, items: [] };
@@ -2739,16 +2754,22 @@
             });
         }
 
-        // ЗБЕРЕЖЕННЯ РОБОЧИХ ДНІВ
         function saveMonthlyWorkDays() {
             let ctx = getSelectedMonthKey();
-            let days = parseInt(document.getElementById('budget-work-days').value) || 26;
-            if (days < 1) days = 1;
+            let daysInput = document.getElementById('budget-work-days');
+            let days = parseInt(daysInput.value);
+
+            if (isNaN(days) || days < 1 || days > 31) {
+                return alert("Будь ласка, вкажіть реальну кількість робочих днів (від 1 до 31)!");
+            }
+
             if (!monthlyBudgets[ctx.storeKey]) {
                 monthlyBudgets[ctx.storeKey] = { month: ctx.ymdMonth, store: ctx.store, workDays: days, items: [] };
             }
             monthlyBudgets[ctx.storeKey].workDays = days;
+            
             saveAndSyncMonthlyBudgets();
+            alert(`✅ Кількість робочих днів для місяця ${ctx.ymdMonth} збережено: ${days} дн.! Всі розрахунки перераховано.`);
         }
 
         // ДОДАВАННЯ МІСЯЧНОГО ПЛАТЕЖУ (ОРЕНДА, ПОДАТКИ)
