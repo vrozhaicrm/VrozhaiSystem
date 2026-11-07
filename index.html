@@ -783,22 +783,12 @@
                         <input type="month" id="filter-value" onchange="filterAccounting()">
                     </span>
                 </div>
-
-                <!-- ТАБЛИЦЯ ПРОДАЖІВ ТА ПРИБУТКУ ЗА ДНЯМИ -->
-                <div class="table-card">
-                    <table>
-                        <thead>
-                            <tr><th>Товар</th><th>Вага</th><th>Ціна/кг</th><th>Сума продажу</th><th>Дата</th></tr>
-                        </thead>
-                        <tbody id="accounting-list"></tbody>
-                    </table>
-                </div>
             </div>
 
             <!-- ================= 3. БЛОК: ОПЕРАЦІЙНІ ВИТРАТИ ================= -->
             <div class="admin-section-box">
                 <div class="admin-section-header">
-                    <span>💸 Операційні витрати (Оренда, пакети, зарплата тощо)</span>
+                    <span>💸 Постійні витрати </span>
                     <div style="font-size: 14px; font-weight: 700; color: #c62828; background: #ffebee; border: 1px solid #ffcdd2; padding: 5px 12px; border-radius: 8px;">
                         Всього витрачено: <span id="total-expenses-sum">0.00</span> грн
                     </div>
@@ -2837,21 +2827,18 @@
             return totalDaySalary;
         }
 
-        // ПОВНИЙ УПРАВЛІНСЬКИЙ РОЗРАХУНОК ЧИСТОГО ПРИБУТКУ (ДЕНЬ, МІСЯЦЬ, РІК)
+        // ПОВНИЙ УПРАВЛІНСЬКИЙ РОЗРАХУНОК ЧИСТОГО ПРИБУТКУ (БЕЗ ДУБЛЮВАННЯ ТАБЛИЦІ)
         function filterAccounting() {
             let mode = document.getElementById('filter-mode').value;
             let inputEl = document.getElementById('filter-value');
             if (!inputEl) return;
             let val = String(inputEl.value).trim(); 
-            let list = document.getElementById('accounting-list');
-            list.innerHTML = "";
-            
             if (!val) return;
 
             let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
 
             // Збираємо дні, які відпрацювали
-            let dailySalesMap = {}; // { "2026-11-06": [cheques] }
+            let dailySalesMap = {};
             let totalIncome = 0;
             let totalCogs = 0;
 
@@ -2876,14 +2863,6 @@
 
                     if (!dailySalesMap[p.yyyy_mm_dd]) dailySalesMap[p.yyyy_mm_dd] = [];
                     dailySalesMap[p.yyyy_mm_dd].push(h);
-
-                    list.innerHTML += `<tr>
-                        <td><b>${h.item.toUpperCase()}</b></td>
-                        <td>${currentQty} кг</td>
-                        <td>${(parseFloat(h.pricePerKg) || 0).toFixed(2)} грн</td>
-                        <td style="font-weight: 600; color: #1b4332;">${currentSaleSum.toFixed(2)} грн</td>
-                        <td><small style="color: #555; font-weight: 500;">${formatDateTime(h.date)}</small></td>
-                    </tr>`;
                 }
             });
 
@@ -2892,7 +2871,6 @@
             let totalOverhead = 0;
             let totalNetProfit = 0;
 
-            // Проходимо по кожному відпрацьованому дню та підсумовуємо чисті прибутки днів
             for (let dayYMD in dailySalesMap) {
                 let dayIncome = 0;
                 let dayCogs = 0;
@@ -2908,12 +2886,11 @@
                 totalSalaries += daySalary;
                 totalOverhead += dayOverhead;
 
-                // ЧИСТИЙ ПРИБУТОК ДНЯ: Дохід - Собівартість - ЗП - Оренда/дні
                 let dayNet = dayIncome - dayCogs - daySalary - dayOverhead;
                 totalNetProfit += dayNet;
             }
 
-            // Виводимо в 5 прозорих карток
+            // Оновлюємо картки
             document.getElementById('total-income').innerText = totalIncome.toFixed(2);
             document.getElementById('total-expense').innerText = totalCogs.toFixed(2);
             document.getElementById('total-salary-cogs').innerText = totalSalaries.toFixed(2);
@@ -2921,7 +2898,7 @@
 
             let profitEl = document.getElementById('total-profit');
             profitEl.innerText = totalNetProfit.toFixed(2);
-            profitEl.style.color = (totalNetProfit >= 0) ? "#006442" : "#c62828"; // зелений, якщо прибуток, червоний — якщо збиток!
+            profitEl.style.color = (totalNetProfit >= 0) ? "#006442" : "#c62828";
         }
 
         // ПЕРЕМИКАННЯ РЕЖИМІВ (ДЕНЬ / МІСЯЦЬ / РІК)
