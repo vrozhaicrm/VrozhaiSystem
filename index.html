@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Врожай</title>
+    <link rel="icon" type="image/png" href="logo.png">
     <style>
         * { box-sizing: border-box; }
         body { 
@@ -258,7 +259,8 @@
     <!-- ВІКНО ЛОГІНА -->
     <div id="login-overlay">
         <div class="login-box">
-            <h2 style="color: #1976d2; margin-top: 0;">Врожай</h2>
+            <img src="logo.png" alt="Врожай" style="height: 55px; width: auto; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">
+            <h2 style="color: #1b4332; margin-top: 0;">Врожай</h2>
             <p style="color: #666; font-size: 14px;">Введіть дані для входу</p>
             <input type="text" id="login-user" placeholder="Логін">
             <input type="password" id="login-pass" placeholder="Пароль">
@@ -276,7 +278,10 @@
     <div id="app-content" style="display: none;">
         
         <!-- ЛОГОТИП -->
-        <div class="brand-logo">Врожай 🍏</div>
+        <div class="brand-logo" style="display: flex; align-items: center; gap: 10px;">
+            <img src="Logo Telegram.png" alt="Врожай" style="height: 42px; width: auto; object-fit: contain; border-radius: 8px;">
+            <span>Врожай</span>
+        </div>
 
         <!-- ВЕРХНЯ ПАНЕЛЬ: МЕНЮ ТА ПРОФІЛЬ -->
         <div class="top-bar">
