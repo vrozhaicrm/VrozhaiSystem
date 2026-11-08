@@ -241,17 +241,110 @@
         tr.batch-even td:first-child, tr.batch-odd td:first-child { border-left: 3.5px solid #006442; }
         tr.batch-end td { border-bottom: 3px solid #d0cfc9 !important; }
 
-        /* Модальне вікно логіна */
+        /* Модальне вікно логіна (Сучасний дизайн) */
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #f6f5f1; display: flex; justify-content: center; align-items: center; z-index: 9999;
+            background: radial-gradient(circle at top, #fafaf7, #edece6);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
         }
         .login-box {
-            background: white; padding: 35px; border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.06); width: 320px; text-align: center; border: 1px solid #e5e5e0;
+            background: #ffffff;
+            padding: 40px 32px;
+            border-radius: 22px;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.02);
+            width: 350px;
+            text-align: center;
+            border: 1px solid #e2e1db;
         }
-        .login-box input { width: 100%; margin: 8px 0; }
-        .login-box button { width: 100%; padding: 11px; background: #006442; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .login-box img {
+            height: 60px;
+            width: auto;
+            object-fit: contain;
+            margin-bottom: 12px;
+            border-radius: 14px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+        .login-box h2 {
+            font-family: 'Georgia', serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: #1b4332;
+            margin: 0 0 6px 0;
+        }
+        .login-box p.login-sub {
+            color: #777;
+            font-size: 13.5px;
+            margin: 0 0 22px 0;
+        }
+        .login-box input[type="text"],
+        .login-box input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            border: 1.5px solid #dcdbd6;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            background: #fafaf7;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+        .login-box input[type="text"]:focus,
+        .login-box input[type="password"]:focus {
+            background: #ffffff;
+            border-color: #006442;
+            box-shadow: 0 0 0 3.5px rgba(0, 100, 66, 0.12);
+        }
+        .login-box label {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            margin: 4px 0 20px 2px;
+            font-size: 13.5px;
+            color: #555;
+            cursor: pointer;
+            user-select: none;
+        }
+        .login-box label input[type="checkbox"] {
+            margin-right: 8px;
+            width: 16px;
+            height: 16px;
+            accent-color: #006442;
+            cursor: pointer;
+        }
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            background: #006442;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 10px rgba(0, 100, 66, 0.25);
+        }
+        .login-box button:hover {
+            background: #004d33;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 14px rgba(0, 100, 66, 0.32);
+        }
+        .login-box button:active {
+            transform: translateY(0);
+        }
+        #login-error {
+            color: #c62828;
+            background: #ffebee;
+            border: 1px solid #ffcdd2;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            margin-top: 14px;
+            margin-bottom: 0;
+            display: none;
+        }
+
     </style>
 </head>
 <body>
@@ -259,18 +352,19 @@
     <!-- ВІКНО ЛОГІНА -->
     <div id="login-overlay">
         <div class="login-box">
-            <img src="logo.png" alt="Врожай" style="height: 55px; width: auto; object-fit: contain; margin-bottom: 12px; border-radius: 8px;">
-            <h2 style="color: #1b4332; margin-top: 0;">Врожай</h2>
-            <p style="color: #666; font-size: 14px;">Введіть дані для входу</p>
-            <input type="text" id="login-user" placeholder="Логін">
-            <input type="password" id="login-pass" placeholder="Пароль">
+            <img src="Logo Telegram.png" onerror="this.onerror=null; this.src='logo.png';" alt="Врожай">
+            <h2>Врожай</h2>
+            <p class="login-sub">Введіть дані для входу в CRM</p>
             
-            <label style="display: flex; align-items: center; justify-content: flex-start; margin: 10px 0; font-size: 14px; color: #555; cursor: pointer;">
-                <input type="checkbox" id="remember-me" style="width: auto; margin-right: 8px; cursor: pointer;"> Запам'ятати мене
+            <input type="text" id="login-user" placeholder="Логін" onkeydown="if(event.key==='Enter') performLogin()">
+            <input type="password" id="login-pass" placeholder="Пароль" onkeydown="if(event.key==='Enter') performLogin()">
+            
+            <label>
+                <input type="checkbox" id="remember-me"> Запам'ятати мене
             </label>
 
             <button id="login-btn" onclick="performLogin()">Увійти</button>
-            <p id="login-error" style="color: red; font-size: 13px; display: none;"></p>
+            <p id="login-error"></p>
         </div>
     </div>
 
