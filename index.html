@@ -974,14 +974,13 @@
                 <div class="table-card" style="margin-top: 20px;">
                     <table>
                         <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Назва філії</th>
-                                <th>Адреса / Примітка</th>
-                                <th>Закріплені продавці</th>
-                                <th>Дії</th>
-                            </tr>
-                        </thead>
+    <tr>
+        <th>Назва філії</th>
+        <th>Адреса / Примітка</th>
+        <th>Закріплені продавці</th>
+        <th>Дії</th>
+    </tr>
+</thead>
                         <tbody id="stores-list-table"></tbody>
                     </table>
                 </div>
@@ -1130,38 +1129,37 @@
             updateUI();
         }
 
-        // ВІДОБРАЖЕННЯ ТАБЛИЦІ МАГАЗИНІВ З ЧІТКИМИ КНОПКАМИ ВІДКРІПЛЕННЯ
-        function renderStoresTable() {
-            let tbody = document.getElementById('stores-list-table');
-            if (!tbody) return;
-            tbody.innerHTML = "";
+        // ВІДОБРАЖЕННЯ ТАБЛИЦІ МАГАЗИНІВ З ЧІТКИМИ КНОПКАМИ ВІДКРІПЛЕННЯ (БЕЗ КОЛОНКИ ID)
+function renderStoresTable() {
+    let tbody = document.getElementById('stores-list-table');
+    if (!tbody) return;
+    tbody.innerHTML = "";
 
-            stores.forEach((st) => {
-                let sellersHTML = `<span style="color: #888; font-size: 13px;">Немає закріплених</span>`;
-                
-                if (st.sellers && st.sellers.length > 0) {
-                    sellersHTML = st.sellers.map(sellerName => `
-                        <span style="background: #e8f5e9; border: 1px solid #c8e6c9; color: #006442; padding: 4px 8px; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; margin: 3px;">
-                            👤 ${sellerName}
-                            <button type="button" onclick="unassignSeller('${st.id}', '${sellerName}')" 
-                                    style="background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; border-radius: 4px; padding: 2px 6px; font-size: 11px; cursor: pointer; font-weight: bold;" 
-                                    title="Відкріпити продавця від цієї філії">Відкріпити ✖</button>
-                        </span>
-                    `).join("");
-                }
-
-                tbody.innerHTML += `<tr>
-                    <td><b>${st.id}</b></td>
-                    <td><b style="color: #1b4332;">🏪 ${st.name}</b></td>
-                    <td>${st.address || '-'}</td>
-                    <td>${sellersHTML}</td>
-                    <td>
-                        <button onclick="editStore('${st.id}')">Ред.</button>
-                        <button onclick="deleteStore('${st.id}')" style="color:red">Видалити</button>
-                    </td>
-                </tr>`;
-            });
+    stores.forEach((st) => {
+        let sellersHTML = `<span style="color: #888; font-size: 13px;">Немає закріплених</span>`;
+        
+        if (st.sellers && st.sellers.length > 0) {
+            sellersHTML = st.sellers.map(sellerName => `
+                <span style="background: #e8f5e9; border: 1px solid #c8e6c9; color: #006442; padding: 4px 8px; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; margin: 3px;">
+                    👤 ${sellerName}
+                    <button type="button" onclick="unassignSeller('${st.id}', '${sellerName}')" 
+                            style="background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; border-radius: 4px; padding: 2px 6px; font-size: 11px; cursor: pointer; font-weight: bold;" 
+                            title="Відкріпити продавця від цієї філії">Відкріпити ✖</button>
+                </span>
+            `).join("");
         }
+
+        tbody.innerHTML += `<tr>
+            <td><b style="color: #1b4332;">🏪 ${st.name}</b></td>
+            <td>${st.address || '-'}</td>
+            <td>${sellersHTML}</td>
+            <td>
+                <button onclick="editStore('${st.id}')">Ред.</button>
+                <button onclick="deleteStore('${st.id}')" style="color:red">Видалити</button>
+            </td>
+        </tr>`;
+    });
+}
 
         // РЕДАГУВАННЯ МАГАЗИНУ (НАЗВА ТА АДРЕСА)
         function editStore(storeId) {
@@ -2974,46 +2972,51 @@
         }
 
         function renderMonthlyBudgetPanel() {
-            let ctx = getSelectedMonthKey();
-            let picker = document.getElementById('budget-month-picker');
-            if (picker && picker.value !== ctx.ymdMonth) picker.value = ctx.ymdMonth;
+    let ctx = getSelectedMonthKey();
+    let picker = document.getElementById('budget-month-picker');
+    if (picker && picker.value !== ctx.ymdMonth) picker.value = ctx.ymdMonth;
 
-            let storeLabel = document.getElementById('budget-current-store-label');
-            if (storeLabel) storeLabel.innerText = `(Філія: ${ctx.store})`;
+    // Шукаємо магазин у списку за його ID, щоб отримати гарну назву
+    let storeLabel = document.getElementById('budget-current-store-label');
+    if (storeLabel) {
+        let storeObj = stores.find(s => s.id === ctx.store);
+        let storeDisplayName = storeObj ? storeObj.name : ctx.store;
+        storeLabel.innerHTML = `(Філія: <b style="color: #1b4332;">🏪 ${storeDisplayName}</b>)`;
+    }
 
-            if (!monthlyBudgets[ctx.storeKey]) {
-                monthlyBudgets[ctx.storeKey] = { month: ctx.ymdMonth, store: ctx.store, workDays: 26, items: [] };
-            }
+    if (!monthlyBudgets[ctx.storeKey]) {
+        monthlyBudgets[ctx.storeKey] = { month: ctx.ymdMonth, store: ctx.store, workDays: 26, items: [] };
+    }
 
-            let budget = monthlyBudgets[ctx.storeKey];
-            document.getElementById('budget-work-days').value = budget.workDays || 26;
+    let budget = monthlyBudgets[ctx.storeKey];
+    document.getElementById('budget-work-days').value = budget.workDays || 26;
 
-            let totalFixed = (budget.items || []).reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
-            let wDays = budget.workDays > 0 ? budget.workDays : 26;
-            let dailyShare = totalFixed / wDays;
+    let totalFixed = (budget.items || []).reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
+    let wDays = budget.workDays > 0 ? budget.workDays : 26;
+    let dailyShare = totalFixed / wDays;
 
-            let badge = document.getElementById('daily-overhead-badge');
-            if (badge) {
-                badge.innerText = `Всього: ${totalFixed.toFixed(2)} грн | Частка на 1 день: ${dailyShare.toFixed(2)} грн/день`;
-            }
+    let badge = document.getElementById('daily-overhead-badge');
+    if (badge) {
+        badge.innerText = `Всього: ${totalFixed.toFixed(2)} грн | Частка на 1 день: ${dailyShare.toFixed(2)} грн/день`;
+    }
 
-            let tbody = document.getElementById('monthly-budget-items-list');
-            if (!tbody) return;
-            tbody.innerHTML = "";
+    let tbody = document.getElementById('monthly-budget-items-list');
+    if (!tbody) return;
+    tbody.innerHTML = "";
 
-            if (!budget.items || budget.items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #888; padding: 15px;">Щомісячних витрат для цього місяця ще не додано</td></tr>`;
-                return;
-            }
+    if (!budget.items || budget.items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #888; padding: 15px;">Щомісячних витрат для цього місяця ще не додано</td></tr>`;
+        return;
+    }
 
-            budget.items.forEach((it, idx) => {
-                tbody.innerHTML += `<tr>
-                    <td><b>${it.name}</b></td>
-                    <td style="font-weight: 700; color: #c62828;">-${parseFloat(it.amount).toFixed(2)} грн</td>
-                    <td><button onclick="deleteMonthlyBudgetItem(${idx})" style="color:red">Видалити</button></td>
-                </tr>`;
-            });
-        }
+    budget.items.forEach((it, idx) => {
+        tbody.innerHTML += `<tr>
+            <td><b>${it.name}</b></td>
+            <td style="font-weight: 700; color: #c62828;">-${parseFloat(it.amount).toFixed(2)} грн</td>
+            <td><button onclick="deleteMonthlyBudgetItem(${idx})" style="color:red">Видалити</button></td>
+        </tr>`;
+    });
+}
 
         function saveMonthlyWorkDays() {
             let ctx = getSelectedMonthKey();
