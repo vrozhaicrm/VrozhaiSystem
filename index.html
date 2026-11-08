@@ -297,6 +297,7 @@
                 <button class="nav-btn" onclick="switchTab(this, 'supply')">Завіз</button>
                 <button class="nav-btn" onclick="switchTab(this, 'sales')">Продажі</button>
                 <button class="nav-btn" onclick="switchTab(this, 'seller-tab')">Продавець</button>
+                <button class="nav-btn" onclick="switchTab(this, 'writeoff-tab')">Списання</button>
                 <button class="nav-btn" onclick="loadFromGoogle(true)" title="Оновити з Google" style="color: #006442;">🔄 Хмара</button>
             </nav>
 
@@ -617,6 +618,64 @@
                     </tr>
                 </thead>
                 <tbody id="seller-salary-list"></tbody>
+            </table>
+        </div>
+    </div>
+
+        <!-- ВКЛАДКА "СПИСАННЯ" (ОБЛІК БРАКУ ТА ПСУВАННЯ ТОВАРУ) -->
+    <div id="writeoff-tab" class="tab">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+            <div class="section-title" style="margin: 0;">🗑️ Оприбуткування та облік списань</div>
+            <div id="writeoff-total-badge" style="font-size: 15px; font-weight: 700; color: #c62828; background: #ffebee; border: 1.5px solid #ffcdd2; padding: 6px 14px; border-radius: 10px;">
+                Всього списано: 0.00 грн (0 кг)
+            </div>
+        </div>
+
+        <!-- ФОРМА СПИСАННЯ ТОВАРУ -->
+        <div style="background: #ffffff; border: 1px solid #e5e5e0; border-radius: 14px; padding: 18px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <select id="wo-item" onchange="onSelectWriteOffItem()" style="min-width: 170px; font-weight: 500;">
+                    <option value="">-- Оберіть товар --</option>
+                </select>
+
+                <input type="number" id="wo-qty" placeholder="Кг списання" oninput="calcWriteOffLoss()" style="width: 120px; font-weight: 600;">
+
+                <select id="wo-reason" style="min-width: 220px; font-weight: 500;">
+                    <option value="🥀 Псування / гниль">🥀 Псування / гниль</option>
+                    <option value="📦 Брак при доставці">📦 Брак при доставці</option>
+                    <option value="⚖️ Усушка / втрата ваги">⚖️ Усушка / втрата ваги</option>
+                    <option value="🥗 Власні потреби магазину">🥗 Власні потреби магазину</option>
+                    <option value="❓ Інше">❓ Інше</option>
+                </select>
+
+                <!-- Автоматичний розрахунок собівартості FIFO -->
+                <input type="text" id="wo-cost-preview" placeholder="Собівартість: 0 грн" readonly 
+                       style="background: #fafaf7; width: 230px; cursor: not-allowed; font-weight: 700; color: #c62828; border: 1px solid #e0dfd9;" 
+                       title="Собівартість закупівлі FIFO розраховується автоматично">
+
+                <button class="primary-btn" onclick="addWriteOff()" style="background: #c62828; padding: 10px 22px; margin-left: auto;">
+                    🗑️ Списати товар
+                </button>
+            </div>
+        </div>
+
+        <!-- ІСТОРІЯ СПИСАНЬ -->
+        <div class="section-title" style="margin-top: 15px;">Історія списаного товару</div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Товар</th>
+                        <th>Вага (кг)</th>
+                        <th>Собівартість/кг</th>
+                        <th>Сума збитку</th>
+                        <th>Причина</th>
+                        <th>Хто списав</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody id="writeoff-list"></tbody>
             </table>
         </div>
     </div>
@@ -955,6 +1014,13 @@
                             if (cloudInv[it].critKg === undefined && inventory[it] && inventory[it].critKg !== undefined) {
                                 cloudInv[it].critKg = inventory[it].critKg;
                             }
+                        }
+
+                        // Підтягуємо списання з хмари Google
+                        if (res.data.writeOffs) {
+                            writeOffs = res.data.writeOffs;
+                            localStorage.setItem('writeOffs', JSON.stringify(writeOffs));
+                            renderWriteOffs();
                         }
 
                         // Страховка: якщо в хмарі ще немає номерів завозу — залишаємо наші локальні
@@ -1367,6 +1433,7 @@
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
         let monthlyBudgets = JSON.parse(localStorage.getItem('monthlyBudgets')) || {};
         let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+        let writeOffs = JSON.parse(localStorage.getItem('writeOffs')) || [];
         let salaryPlans = JSON.parse(localStorage.getItem('salaryPlans')) || [];
         let stores = JSON.parse(localStorage.getItem('stores')) || [
             { id: "store-1", name: "Магазин № 1 (Основний)", address: "Головна філія", date: formatDateTime(new Date()) }
@@ -1399,6 +1466,11 @@
                 } else {
                     renderSellerSalary();
                 }
+            }
+
+            // Якщо відкрили вкладку списання
+            if (tabId === 'writeoff-tab') {
+                renderWriteOffs();
             }
 
             if (tabId === 'accounting') {
@@ -2298,6 +2370,189 @@
             `;
             document.getElementById('supply-total-preview').value = "";
             updateUI();
+        }
+
+        // ПІДТЯГУВАННЯ СОБІВАРТОСТІ ПРИ ВИБОРІ ТОВАРУ ДЛЯ СПИСАННЯ
+        function onSelectWriteOffItem() {
+            calcWriteOffLoss();
+        }
+
+        // АВТОМАТИЧНИЙ РОЗРАХУНОК ЗБИТКУ СПИСАННЯ
+        function calcWriteOffLoss() {
+            let item = document.getElementById('wo-item').value;
+            let qty = parseFloat(document.getElementById('wo-qty').value) || 0;
+            let preview = document.getElementById('wo-cost-preview');
+
+            if (item && inventory[item] && qty > 0) {
+                let buyPrice = inventory[item].buyPrice || 0;
+                let loss = qty * buyPrice;
+                preview.value = `Собівартість: ${buyPrice.toFixed(2)} | Збиток: ${loss.toFixed(2)} грн`;
+            } else {
+                preview.value = "";
+            }
+        }
+
+        // ОПРИБУТКУВАННЯ СПИСАННЯ ТОВАРУ
+        function addWriteOff() {
+            let item = document.getElementById('wo-item').value;
+            let qty = parseFloat(document.getElementById('wo-qty').value);
+            let reason = document.getElementById('wo-reason').value;
+
+            if (!item || isNaN(qty) || qty <= 0) {
+                return alert("Оберіть товар та вкажіть коректну вагу для списання!");
+            }
+
+            if (!inventory[item] || inventory[item].kg < qty) {
+                return alert(`Недостатньо товару на складі для списання! На залишку: ${inventory[item] ? inventory[item].kg : 0} кг.`);
+            }
+
+            let invItem = inventory[item];
+            let remainingToDeduct = qty;
+            let calculatedCost = 0;
+
+            if (!invItem.batches || invItem.batches.length === 0) {
+                invItem.batches = [{ qty: invItem.kg, buyPrice: invItem.buyPrice || 0 }];
+            }
+
+            // Списуємо партії за чергою FIFO
+            while (remainingToDeduct > 0 && invItem.batches.length > 0) {
+                let firstBatch = invItem.batches[0];
+                if (firstBatch.qty <= remainingToDeduct) {
+                    calculatedCost += firstBatch.qty * firstBatch.buyPrice;
+                    remainingToDeduct -= firstBatch.qty;
+                    invItem.batches.shift();
+                } else {
+                    calculatedCost += remainingToDeduct * firstBatch.buyPrice;
+                    firstBatch.qty -= remainingToDeduct;
+                    remainingToDeduct = 0;
+                }
+            }
+
+            if (remainingToDeduct > 0) {
+                calculatedCost += remainingToDeduct * (invItem.buyPrice || 0);
+            }
+
+            invItem.kg -= qty;
+
+            let date = formatDateTime(new Date());
+            let currentUser = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Admin';
+            let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'store-1';
+            let costPerKg = (qty > 0) ? (calculatedCost / qty).toFixed(2) : invItem.buyPrice;
+
+            let newWo = {
+                date: date,
+                item: item,
+                qty: qty,
+                costPerKg: parseFloat(costPerKg),
+                totalLoss: parseFloat(calculatedCost.toFixed(2)),
+                reason: reason,
+                user: currentUser,
+                store: activeStore
+            };
+
+            writeOffs.push(newWo);
+            localStorage.setItem('writeOffs', JSON.stringify(writeOffs));
+
+            // Відправляємо в Google
+            sendToGoogle({
+                type: "write_off",
+                date: date,
+                item: item,
+                qty: qty,
+                costPerKg: parseFloat(costPerKg),
+                totalLoss: parseFloat(calculatedCost.toFixed(2)),
+                reason: reason,
+                user: currentUser,
+                store: activeStore
+            });
+            sendToGoogle({ type: "sync_stock", inventory: inventory });
+
+            document.getElementById('wo-qty').value = "";
+            document.getElementById('wo-cost-preview').value = "";
+            
+            updateUI();
+            renderWriteOffs();
+            alert(`🗑️ Товар "${item.toUpperCase()}" (${qty} кг) успішно списано на суму ${calculatedCost.toFixed(2)} грн!`);
+        }
+
+        // ВИДАЛЕННЯ СПИСАННЯ (ПОВЕРНЕННЯ ТОВАРУ НА СКЛАД)
+        function deleteWriteOff(index) {
+            let wo = writeOffs[index];
+            if (!wo) return;
+
+            if (confirm(`Скасувати списання товару "${wo.item.toUpperCase()}" (${wo.qty} кг) та повернути його на склад?`)) {
+                // Повертаємо кілограми на склад
+                if (inventory[wo.item]) {
+                    inventory[wo.item].kg += wo.qty;
+                    if (!inventory[wo.item].batches) inventory[wo.item].batches = [];
+                    inventory[wo.item].batches.unshift({ qty: wo.qty, buyPrice: wo.costPerKg });
+                }
+
+                writeOffs.splice(index, 1);
+                localStorage.setItem('writeOffs', JSON.stringify(writeOffs));
+
+                sendToGoogle({ type: "sync_write_offs", writeOffs: writeOffs });
+                sendToGoogle({ type: "sync_stock", inventory: inventory });
+
+                updateUI();
+                renderWriteOffs();
+            }
+        }
+
+        // ВІДОБРАЖЕННЯ ТАБЛИЦІ СПИСАНЬ
+        function renderWriteOffs() {
+            let tbody = document.getElementById('writeoff-list');
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            // Наповнюємо список товарів для форми
+            let woSelect = document.getElementById('wo-item');
+            if (woSelect) {
+                let cur = woSelect.value;
+                woSelect.innerHTML = '<option value="">-- Оберіть товар для списання --</option>';
+                for (let it in inventory) {
+                    if (inventory[it].kg > 0) {
+                        woSelect.innerHTML += `<option value="${it}">${it.toUpperCase()} (залишок: ${inventory[it].kg} кг)</option>`;
+                    }
+                }
+                if (cur) woSelect.value = cur;
+            }
+
+            let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
+            let filteredWo = (activeStore !== 'all') 
+                ? writeOffs.filter(w => (w.store || 'store-1') === activeStore) 
+                : writeOffs;
+
+            let totalLossSum = 0;
+            let totalLossKg = 0;
+
+            if (filteredWo.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #888; padding: 25px;">Списаного товару немає</td></tr>`;
+            } else {
+                filteredWo.slice().reverse().forEach((wo, idx) => {
+                    let realIndex = writeOffs.indexOf(wo);
+                    totalLossSum += parseFloat(wo.totalLoss) || 0;
+                    totalLossKg += parseFloat(wo.qty) || 0;
+
+                    tbody.innerHTML += `<tr>
+                        <td><small style="color: #555; font-weight: 500;">${formatDateTime(wo.date)}</small></td>
+                        <td><b>${wo.item.toUpperCase()}</b></td>
+                        <td><span style="color: #c62828; font-weight: 700;">-${wo.qty} кг</span></td>
+                        <td>${parseFloat(wo.costPerKg).toFixed(2)} грн</td>
+                        <td style="font-weight: 800; color: #c62828;">-${parseFloat(wo.totalLoss).toFixed(2)} грн</td>
+                        <td><span style="background: #fbfbf9; border: 1px solid #e0dfd9; padding: 2px 8px; border-radius: 6px; font-size: 13px;">${wo.reason}</span></td>
+                        <td><b style="color: #1b4332;">👤 ${wo.user}</b></td>
+                        <td>
+                            <button onclick="deleteWriteOff(${realIndex})" style="color:red">Видалити</button>
+                        </td>
+                    </tr>`;
+                });
+            }
+
+            let badge = document.getElementById('writeoff-total-badge');
+            if (badge) {
+                badge.innerText = `Всього списано: ${totalLossSum.toFixed(2)} грн (${totalLossKg.toFixed(2)} кг)`;
+            }
         }
 
         // НАПОВНЕННЯ СПИСКУ ТОВАРІВ
