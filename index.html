@@ -1458,29 +1458,35 @@ function renderStoresTable() {
         }
 
         function switchTab(btn, tabId) {
-            document.querySelectorAll('.pill-nav button').forEach(b => b.classList.remove('active'));
-            if (btn) btn.classList.add('active');
-            showTab(tabId);
+    document.querySelectorAll('.pill-nav button').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    showTab(tabId);
 
-            // Якщо відкрили вкладку продавця — задаємо період і рахуємо зарплату
-            if (tabId === 'seller-tab') {
-                let startEl = document.getElementById('salary-start-date');
-                if (startEl && !startEl.value) {
-                    setSalaryDatePreset('current-month');
-                } else {
-                    renderSellerSalary();
-                }
-            }
+    // При відкритті вкладки Завіз — автоматично вмикаємо фільтр на ОСТАННІЙ завіз
+    if (tabId === 'supply') {
+        selectLatestSupplyBatch(true);
+        updateUI();
+    }
 
-            // Якщо відкрили вкладку списання
-            if (tabId === 'writeoff-tab') {
-                renderWriteOffs();
-            }
-
-            if (tabId === 'accounting') {
-                updateFilterInput();
-            }
+    // Якщо відкрили вкладку продавця — задаємо період і рахуємо зарплату
+    if (tabId === 'seller-tab') {
+        let startEl = document.getElementById('salary-start-date');
+        if (startEl && !startEl.value) {
+            setSalaryDatePreset('current-month');
+        } else {
+            renderSellerSalary();
         }
+    }
+
+    // Якщо відкрили вкладку списання
+    if (tabId === 'writeoff-tab') {
+        renderWriteOffs();
+    }
+
+    if (tabId === 'accounting') {
+        updateFilterInput();
+    }
+}
 
         // ВІДКРИТТЯ ОСОБИСТОГО КАБІНЕТУ З РОЗПОДІЛОМ ПРАВ
         function openProfile() {
@@ -2005,6 +2011,27 @@ function renderStoresTable() {
             updateUI();
         }
 
+        // АВТОМАТИЧНИЙ ВИБІР ОСТАННЬОГО ЗАВОЗУ
+function selectLatestSupplyBatch(force = false) {
+    let batchEl = document.getElementById('filter-supply-batch');
+    if (!batchEl) return;
+
+    let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
+    
+    // Шукаємо всі номери завозів для поточної філії
+    let batches = supplies
+        .filter(s => activeStore === 'all' || (s.store || 'store-1') === activeStore)
+        .map(s => parseInt(s.batchNum))
+        .filter(n => !isNaN(n) && n > 0);
+
+    if (batches.length > 0) {
+        let maxBatch = Math.max(...batches);
+        if (force || !batchEl.value) {
+            batchEl.value = String(maxBatch);
+        }
+    }
+}
+
         function updateSalesDateInput() {
             let mode = document.getElementById('filter-sales-date-mode').value;
             document.getElementById('filter-sales-date-container').innerHTML = createDateInputHTML(mode, 'updateUI()');
@@ -2040,23 +2067,33 @@ function renderStoresTable() {
                 if (curSeller) sellerEl.value = curSeller;
             }
 
-                // 3. Номери завозів для фільтра завозу
-            let batchEl = document.getElementById('filter-supply-batch');
-            if (batchEl) {
-                let curBatch = batchEl.value;
-                let batches = new Set();
-                supplies.forEach(s => {
-                    let num = parseInt(s.batchNum);
-                    if (!isNaN(num) && num > 0) batches.add(num);
-                });
-                let sortedBatches = Array.from(batches).sort((a, b) => a - b);
-                batchEl.innerHTML = '<option value="">Всі заводи</option>';
-                sortedBatches.forEach(b => {
-                    batchEl.innerHTML += `<option value="${b}">№ ${b}</option>`;
-                });
-                if (curBatch) batchEl.value = curBatch;
-            }     
-        }
+                // 3. Номери завозів для фільтра завозу (найновіші зверху + автовибір)
+let batchEl = document.getElementById('filter-supply-batch');
+if (batchEl) {
+    let curBatch = batchEl.value;
+    let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
+    
+    let batches = new Set();
+    supplies.forEach(s => {
+        if (activeStore !== 'all' && (s.store || 'store-1') !== activeStore) return;
+        let num = parseInt(s.batchNum);
+        if (!isNaN(num) && num > 0) batches.add(num);
+    });
+
+    // Сортуємо від більшого до меншого (напр: №15, №14, №13...)
+    let sortedBatches = Array.from(batches).sort((a, b) => b - a);
+
+    batchEl.innerHTML = '<option value="">Всі завози</option>';
+    sortedBatches.forEach(b => {
+        batchEl.innerHTML += `<option value="${b}">№ ${b}</option>`;
+    });
+
+    if (curBatch && sortedBatches.includes(parseInt(curBatch))) {
+        batchEl.value = curBatch;
+    } else if (sortedBatches.length > 0) {
+        batchEl.value = String(sortedBatches[0]); // підставляємо найновіший
+    }
+}
 
         function updateUI() {
             // Наповнюємо списки фільтрів актуальними товарами та продавцями
