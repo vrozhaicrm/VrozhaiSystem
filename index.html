@@ -744,8 +744,8 @@
 
                 <!-- Автоматичний розрахунок собівартості FIFO -->
                 <input type="text" id="wo-cost-preview" placeholder="Собівартість: 0 грн" readonly 
-                       style="background: #fafaf7; width: 230px; cursor: not-allowed; font-weight: 700; color: #c62828; border: 1px solid #e0dfd9;" 
-                       title="Собівартість закупівлі FIFO розраховується автоматично">
+       style="background: #fafaf7; min-width: 300px; padding: 8px 12px; cursor: not-allowed; font-weight: 700; color: #c62828; border: 1px solid #e0dfd9; font-size: 13.5px;" 
+       title="Собівартість закупівлі FIFO розраховується автоматично">
 
                 <button class="primary-btn" onclick="addWriteOff()" style="background: #c62828; padding: 10px 22px; margin-left: auto;">
                     🗑️ Списати товар
@@ -2516,19 +2516,19 @@ function selectLatestSupplyBatch(force = false) {
         }
 
         // АВТОМАТИЧНИЙ РОЗРАХУНОК ЗБИТКУ СПИСАННЯ
-        function calcWriteOffLoss() {
-            let item = document.getElementById('wo-item').value;
-            let qty = parseFloat(document.getElementById('wo-qty').value) || 0;
-            let preview = document.getElementById('wo-cost-preview');
+function calcWriteOffLoss() {
+    let item = document.getElementById('wo-item').value;
+    let qty = parseFloat(document.getElementById('wo-qty').value) || 0;
+    let preview = document.getElementById('wo-cost-preview');
 
-            if (item && inventory[item] && qty > 0) {
-                let buyPrice = inventory[item].buyPrice || 0;
-                let loss = qty * buyPrice;
-                preview.value = `Собівартість: ${buyPrice.toFixed(2)} | Збиток: ${loss.toFixed(2)} грн`;
-            } else {
-                preview.value = "";
-            }
-        }
+    if (item && inventory[item] && qty > 0) {
+        let buyPrice = inventory[item].buyPrice || 0;
+        let loss = qty * buyPrice;
+        preview.value = `Собівартість: ${buyPrice.toFixed(2)} грн | Збиток: ${loss.toFixed(2)} грн`;
+    } else {
+        preview.value = "";
+    }
+}
 
         // ОПРИБУТКУВАННЯ СПИСАННЯ ТОВАРУ
         function addWriteOff() {
