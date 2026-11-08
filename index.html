@@ -817,6 +817,12 @@
                         <div class="kpi-value" style="font-size: 26px;"><span id="total-expense">0.00</span> грн</div>
                     </div>
 
+                    <!-- ДОДАТИ ЦЮ КАРТКУ: Збитки від списання -->
+                    <div class="kpi-card kpi-expense" style="min-width: 160px; background: #fff0f0; border: 1px solid #ffcdd2;">
+                    <div class="kpi-header"><span class="kpi-icon" style="background: #c62828;">🗑️</span><span>Списання (Брак)</span></div>
+                    <div class="kpi-value" style="font-size: 26px; color: #c62828;"><span id="total-writeoff-loss">0.00</span> грн</div>
+                    </div>
+
                     <!-- ЗП продавців -->
                     <div class="kpi-card kpi-expense" style="min-width: 160px;">
                         <div class="kpi-header"><span class="kpi-icon icon-expense">👥</span><span>Зарплата продавців</span></div>
@@ -3103,79 +3109,91 @@
             return totalDaySalary;
         }
 
-        // ПОВНИЙ УПРАВЛІНСЬКИЙ РОЗРАХУНОК ЧИСТОГО ПРИБУТКУ (БЕЗ ДУБЛЮВАННЯ ТАБЛИЦІ)
-        function filterAccounting() {
-            let mode = document.getElementById('filter-mode').value;
-            let inputEl = document.getElementById('filter-value');
-            if (!inputEl) return;
-            let val = String(inputEl.value).trim(); 
-            if (!val) return;
+        // ПОВНИЙ УПРАВЛІНСЬКИЙ РОЗРАХУНОК ЧИСТОГО ПРИБУТКУ З УРАХУВАННЯМ СПИСАНЬ
+function filterAccounting() {
+    let mode = document.getElementById('filter-mode').value;
+    let inputEl = document.getElementById('filter-value');
+    if (!inputEl) return;
+    let val = String(inputEl.value).trim(); 
+    if (!val) return;
 
-            let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
+    let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
 
-            // Збираємо дні, які відпрацювали
-            let dailySalesMap = {};
-            let totalIncome = 0;
-            let totalCogs = 0;
+    // 1. Збираємо продажі за обраний період
+    let dailySalesMap = {};
+    let totalIncome = 0;
+    let totalCogs = 0;
 
-            history.forEach(h => {
-                let p = parseDateHelper(h.date);
-                if (!p) return;
-                if (activeStore !== 'all' && (h.store || 'store-1') !== activeStore) return;
+    history.forEach(h => {
+        let p = parseDateHelper(h.date);
+        if (!p) return;
+        if (activeStore !== 'all' && (h.store || 'store-1') !== activeStore) return;
 
-                let match = false;
-                if (mode === 'day' && p.yyyy_mm_dd === val) match = true;
-                else if (mode === 'month' && p.yyyy_mm === val) match = true;
-                else if (mode === 'year' && p.year === val) match = true;
+        let match = false;
+        if (mode === 'day' && p.yyyy_mm_dd === val) match = true;
+        else if (mode === 'month' && p.yyyy_mm === val) match = true;
+        else if (mode === 'year' && p.year === val) match = true;
 
-                if (match) {
-                    let buyPrice = (inventory[h.item] && inventory[h.item].buyPrice) ? inventory[h.item].buyPrice : 0;
-                    let currentSaleSum = parseFloat(h.totalSum) || (parseFloat(h.qty) * parseFloat(h.pricePerKg)) || 0;
-                    let currentQty = parseFloat(h.qty) || 0;
-                    let realCost = (h.cost !== undefined && h.cost !== null) ? parseFloat(h.cost) : (currentQty * buyPrice);
+        if (match) {
+            let buyPrice = (inventory[h.item] && inventory[h.item].buyPrice) ? inventory[h.item].buyPrice : 0;
+            let currentSaleSum = parseFloat(h.totalSum) || (parseFloat(h.qty) * parseFloat(h.pricePerKg)) || 0;
+            let currentQty = parseFloat(h.qty) || 0;
+            let realCost = (h.cost !== undefined && h.cost !== null) ? parseFloat(h.cost) : (currentQty * buyPrice);
 
-                    totalIncome += currentSaleSum;
-                    totalCogs += realCost;
+            totalIncome += currentSaleSum;
+            totalCogs += realCost;
 
-                    if (!dailySalesMap[p.yyyy_mm_dd]) dailySalesMap[p.yyyy_mm_dd] = [];
-                    dailySalesMap[p.yyyy_mm_dd].push(h);
-                }
-            });
-
-            // РАХУЄМО ЧИСТИЙ ПРИБУТОК ЗА ФОРМУЛОЮ
-            let totalSalaries = 0;
-            let totalOverhead = 0;
-            let totalNetProfit = 0;
-
-            for (let dayYMD in dailySalesMap) {
-                let dayIncome = 0;
-                let dayCogs = 0;
-                dailySalesMap[dayYMD].forEach(h => {
-                    dayIncome += parseFloat(h.totalSum) || (parseFloat(h.qty) * parseFloat(h.pricePerKg)) || 0;
-                    let bPrice = (inventory[h.item] && inventory[h.item].buyPrice) ? inventory[h.item].buyPrice : 0;
-                    dayCogs += (h.cost !== undefined && h.cost !== null) ? parseFloat(h.cost) : (parseFloat(h.qty) * bPrice);
-                });
-
-                let daySalary = getDaySalaryTotal(dayYMD, activeStore);
-                let dayOverhead = getDailyOverheadForDay(dayYMD, activeStore);
-
-                totalSalaries += daySalary;
-                totalOverhead += dayOverhead;
-
-                let dayNet = dayIncome - dayCogs - daySalary - dayOverhead;
-                totalNetProfit += dayNet;
-            }
-
-            // Оновлюємо картки
-            document.getElementById('total-income').innerText = totalIncome.toFixed(2);
-            document.getElementById('total-expense').innerText = totalCogs.toFixed(2);
-            document.getElementById('total-salary-cogs').innerText = totalSalaries.toFixed(2);
-            document.getElementById('total-overhead-cogs').innerText = totalOverhead.toFixed(2);
-
-            let profitEl = document.getElementById('total-profit');
-            profitEl.innerText = totalNetProfit.toFixed(2);
-            profitEl.style.color = (totalNetProfit >= 0) ? "#006442" : "#c62828";
+            if (!dailySalesMap[p.yyyy_mm_dd]) dailySalesMap[p.yyyy_mm_dd] = [];
+            dailySalesMap[p.yyyy_mm_dd].push(h);
         }
+    });
+
+    // 2. Збираємо суму збитків від списань за цей же період
+    let totalWriteOffLoss = 0;
+    writeOffs.forEach(wo => {
+        let p = parseDateHelper(wo.date);
+        if (!p) return;
+        if (activeStore !== 'all' && (wo.store || 'store-1') !== activeStore) return;
+
+        let match = false;
+        if (mode === 'day' && p.yyyy_mm_dd === val) match = true;
+        else if (mode === 'month' && p.yyyy_mm === val) match = true;
+        else if (mode === 'year' && p.year === val) match = true;
+
+        if (match) {
+            totalWriteOffLoss += parseFloat(wo.totalLoss) || 0;
+        }
+    });
+
+    // 3. Рахуємо ЗП продавців та оренду
+    let totalSalaries = 0;
+    let totalOverhead = 0;
+
+    for (let dayYMD in dailySalesMap) {
+        let daySalary = getDaySalaryTotal(dayYMD, activeStore);
+        let dayOverhead = getDailyOverheadForDay(dayYMD, activeStore);
+
+        totalSalaries += daySalary;
+        totalOverhead += dayOverhead;
+    }
+
+    // 4. Підсумковий реальний чистий прибуток з урахуванням браку
+    let totalNetProfit = totalIncome - totalCogs - totalWriteOffLoss - totalSalaries - totalOverhead;
+
+    // 5. Оновлюємо значення карток
+    document.getElementById('total-income').innerText = totalIncome.toFixed(2);
+    document.getElementById('total-expense').innerText = totalCogs.toFixed(2);
+    
+    let woEl = document.getElementById('total-writeoff-loss');
+    if (woEl) woEl.innerText = totalWriteOffLoss.toFixed(2);
+
+    document.getElementById('total-salary-cogs').innerText = totalSalaries.toFixed(2);
+    document.getElementById('total-overhead-cogs').innerText = totalOverhead.toFixed(2);
+
+    let profitEl = document.getElementById('total-profit');
+    profitEl.innerText = totalNetProfit.toFixed(2);
+    profitEl.style.color = (totalNetProfit >= 0) ? "#006442" : "#c62828";
+}
 
         // ПЕРЕМИКАННЯ РЕЖИМІВ (ДЕНЬ / МІСЯЦЬ / РІК)
         function updateFilterInput() {
