@@ -2637,6 +2637,54 @@ function selectLatestSupplyBatch(force = false) {
             }
         }
 
+        // РЕДАГУВАННЯ СПИСАННЯ (ВАГА ТА ПРИЧИНА)
+function editWriteOff(index) {
+    let wo = writeOffs[index];
+    if (!wo) return;
+
+    let newQtyStr = prompt(`Введіть нову вагу списання (кг) для ${wo.item.toUpperCase()}:`, wo.qty);
+    if (newQtyStr === null) return;
+    let newQty = parseFloat(newQtyStr);
+    if (isNaN(newQty) || newQty <= 0) {
+        return alert("Будь ласка, вкажіть коректну вагу більше 0!");
+    }
+
+    let diffKg = newQty - wo.qty;
+
+    // Якщо збільшуємо вагу списання — перевіряємо, чи вистачає товару на складі
+    if (diffKg > 0 && inventory[wo.item] && inventory[wo.item].kg < diffKg) {
+        return alert(`На складі недостатньо товару для збільшення списання! Залишок: ${inventory[wo.item].kg} кг.`);
+    }
+
+    // Редагування причини
+    let newReason = prompt("Введіть причину списання (або залиште поточну):", wo.reason);
+    if (newReason !== null && newReason.trim()) {
+        wo.reason = newReason.trim();
+    }
+
+    // Коригуємо залишок складу (якщо зменшили списання — повертаємо на склад, якщо збільшили — списуємо)
+    if (inventory[wo.item]) {
+        inventory[wo.item].kg -= diffKg;
+        if (inventory[wo.item].kg < 0) inventory[wo.item].kg = 0;
+    }
+
+    // Оновлюємо суму збитку за собівартістю
+    wo.qty = newQty;
+    wo.totalLoss = parseFloat((newQty * wo.costPerKg).toFixed(2));
+
+    localStorage.setItem('writeOffs', JSON.stringify(writeOffs));
+    localStorage.setItem('inventory', JSON.stringify(inventory));
+
+    // Синхронізуємо зі складом та Google Таблицею
+    sendToGoogle({ type: "sync_write_offs", writeOffs: writeOffs });
+    sendToGoogle({ type: "sync_stock", inventory: inventory });
+
+    updateUI();
+    renderWriteOffs();
+    if (typeof filterAccounting === 'function') filterAccounting();
+    alert("✅ Списання успішно оновлено!");
+}
+
         // ВІДОБРАЖЕННЯ ТАБЛИЦІ СПИСАНЬ
         function renderWriteOffs() {
             let tbody = document.getElementById('writeoff-list');
@@ -2681,8 +2729,9 @@ function selectLatestSupplyBatch(force = false) {
                         <td><span style="background: #fbfbf9; border: 1px solid #e0dfd9; padding: 2px 8px; border-radius: 6px; font-size: 13px;">${wo.reason}</span></td>
                         <td><b style="color: #1b4332;">👤 ${wo.user}</b></td>
                         <td>
-                            <button onclick="deleteWriteOff(${realIndex})" style="color:red">Видалити</button>
-                        </td>
+    <button onclick="editWriteOff(${realIndex})">Ред.</button>
+    <button onclick="deleteWriteOff(${realIndex})" style="color:red">Видалити</button>
+</td>
                     </tr>`;
                 });
             }
