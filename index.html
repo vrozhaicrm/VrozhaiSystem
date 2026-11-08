@@ -418,9 +418,9 @@
 
 <!-- 3. Фільтр за номером завозу -->
             <label style="font-weight: 500; margin-left: 10px;">Завіз №:</label>
-            <select id="filter-supply-batch" onchange="updateUI()" style="min-width: 130px; font-weight: 500;">
-                <option value="">Всі заводи</option>
-            </select>
+            <select id="filter-supply-batch" onchange="this.dataset.userSelected='true'; updateUI()" style="min-width: 130px; font-weight: 500;">
+    <option value="">Всі завози</option>
+</select>
             
         </div>
 
@@ -1462,9 +1462,10 @@ function renderStoresTable() {
     if (btn) btn.classList.add('active');
     showTab(tabId);
 
-    // При відкритті вкладки Завіз — автоматично вмикаємо фільтр на ОСТАННІЙ завіз
+    // При відкритті вкладки Завіз — показуємо останній завіз за замовчуванням
     if (tabId === 'supply') {
-        selectLatestSupplyBatch(true);
+        let batchEl = document.getElementById('filter-supply-batch');
+        if (batchEl) delete batchEl.dataset.userSelected;
         updateUI();
     }
 
@@ -2067,34 +2068,35 @@ function selectLatestSupplyBatch(force = false) {
                 if (curSeller) sellerEl.value = curSeller;
             }
 
-                // 3. Номери завозів для фільтра завозу (найновіші зверху + автовибір)
-let batchEl = document.getElementById('filter-supply-batch');
-if (batchEl) {
-    let curBatch = batchEl.value;
-    let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
-    
-    let batches = new Set();
-    supplies.forEach(s => {
-        if (activeStore !== 'all' && (s.store || 'store-1') !== activeStore) return;
-        let num = parseInt(s.batchNum);
-        if (!isNaN(num) && num > 0) batches.add(num);
-    });
+                // 3. Номери завозів для фільтра завозу (найновіші зверху + коректне перемикання)
+            let batchEl = document.getElementById('filter-supply-batch');
+            if (batchEl) {
+                let wasUserSelected = (batchEl.dataset.userSelected === "true");
+                let curBatch = batchEl.value;
+                let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
+                
+                let batches = new Set();
+                supplies.forEach(s => {
+                    if (activeStore !== 'all' && (s.store || 'store-1') !== activeStore) return;
+                    let num = parseInt(s.batchNum);
+                    if (!isNaN(num) && num > 0) batches.add(num);
+                });
 
-    // Сортуємо від більшого до меншого (напр: №15, №14, №13...)
-    let sortedBatches = Array.from(batches).sort((a, b) => b - a);
+                // Сортуємо від більшого до меншого (напр: №15, №14, №13...)
+                let sortedBatches = Array.from(batches).sort((a, b) => b - a);
 
-    batchEl.innerHTML = '<option value="">Всі завози</option>';
-    sortedBatches.forEach(b => {
-        batchEl.innerHTML += `<option value="${b}">№ ${b}</option>`;
-    });
+                batchEl.innerHTML = '<option value="">Всі завози</option>';
+                sortedBatches.forEach(b => {
+                    batchEl.innerHTML += `<option value="${b}">№ ${b}</option>`;
+                });
 
-    if (curBatch && sortedBatches.includes(parseInt(curBatch))) {
-        batchEl.value = curBatch;
-    } else if (sortedBatches.length > 0) {
-        batchEl.value = String(sortedBatches[0]); // підставляємо найновіший
-    }
-}
+                if (wasUserSelected) {
+                    batchEl.value = curBatch; // Зберігаємо вибір користувача (зокрема "Всі завози")
+                } else if (sortedBatches.length > 0) {
+                    batchEl.value = String(sortedBatches[0]); // Якщо зайшли вперше — ставимо останній
+                }
             }
+        }
 
         function updateUI() {
             // Наповнюємо списки фільтрів актуальними товарами та продавцями
