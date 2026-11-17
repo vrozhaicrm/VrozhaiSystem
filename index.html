@@ -1443,26 +1443,13 @@ function renderStoresTable() {
                         avatarEl.style.background = "#e8f5e9"; // м'який зелений фон
                     }
                 }
-                
-                // --- ДОДАЄМО ВСТАНОВЛЕННЯ ІКОНКИ В ШАПЦІ: ---
-                let avatarEl = document.getElementById('user-avatar-badge');
-                if (avatarEl) {
-                    if (role === 'admin') {
-                        avatarEl.innerText = "👑";
-                        avatarEl.style.background = "#fff3e0"; // теплий золотистий фон
-                    } else {
-                        avatarEl.innerText = "🛒";
-                        avatarEl.style.background = "#e8f5e9"; // м'який зелений фон
-                    }
-                }
                 // ---------------------------------------------
 
-                // ⬇️ ВСТАВИТИ СЮДИ:
+                // ПРИХОВУВАННЯ ВКЛАДКИ "ЗАВІЗ" ДЛЯ ПРОДАВЦЯ:
                 let supplyNavBtn = document.getElementById('nav-btn-supply');
                 if (supplyNavBtn) {
                     supplyNavBtn.style.display = (role === 'admin') ? 'inline-block' : 'none';
                 }
-                // ⬆️ КІНЕЦЬ ВСТАВКИ
 
                 // ПРИ ВХОДІ ОДРАЗУ ПІДТЯГУЄМО СВІЖІ ДАНІ З ХМАРИ:
                 loadFromGoogle();
