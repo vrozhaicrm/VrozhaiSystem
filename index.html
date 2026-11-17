@@ -1175,6 +1175,13 @@
                             localStorage.setItem('monthlyBudgets', JSON.stringify(monthlyBudgets));
                         }
 
+                        // Підтягуємо список користувачів (продавців) з хмари Google:
+                        if (res.data.users) {
+                            users = res.data.users;
+                            localStorage.setItem('users', JSON.stringify(users));
+                            populateStoreSelectors();
+                        }
+
                         // Миттєво оновлюємо локальну пам'ять
                         localStorage.setItem('inventory', JSON.stringify(inventory));
                         localStorage.setItem('supplies', JSON.stringify(supplies));
@@ -1231,13 +1238,27 @@
                 });
             }
 
-            // 3. Список продавців для закріплення
+            // 3. Список продавців для закріплення (з облікових записів + історії)
             if (assignSeller) {
                 assignSeller.innerHTML = '<option value="">Оберіть продавця</option>';
                 let sellers = new Set();
-                history.forEach(h => { if (h.seller && h.seller !== '-') sellers.add(h.seller); });
+
+                // 1) Беремо всіх продавців з аркуша "Користувачі"
+                if (typeof users !== 'undefined' && Array.isArray(users)) {
+                    users.forEach(u => {
+                        let uName = u.username || '';
+                        let uRole = (u.role || '').toLowerCase();
+                        if (uName && (uRole === 'seller' || !isAdminUser(uName))) {
+                            sellers.add(uName);
+                        }
+                    });
+                }
+
+                // 2) Додатково беремо з історії продажів та вже закріплених у магазинах
+                history.forEach(h => { if (h.seller && h.seller !== '-' && !isAdminUser(h.seller)) sellers.add(h.seller); });
+                stores.forEach(st => { if (st.sellers) st.sellers.forEach(s => { if (!isAdminUser(s)) sellers.add(s); }); });
+
                 sellers.forEach(s => {
-                    if (isAdminUser(s)) return;
                     assignSeller.innerHTML += `<option value="${s}">👤 ${s}</option>`;
                 });
             }
@@ -1575,6 +1596,7 @@ function renderStoresTable() {
         let history = JSON.parse(localStorage.getItem('history')) || [];
         let supplies = JSON.parse(localStorage.getItem('supplies')) || [];
         let salesLimit = 30;
+        let users = JSON.parse(localStorage.getItem('users')) || [];
 
         function loadMoreSales() {
             salesLimit += 30;
