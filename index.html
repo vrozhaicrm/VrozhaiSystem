@@ -462,6 +462,14 @@
         
         <!-- ПАНЕЛЬ ВВЕДЕННЯ ЗАВОЗУ (МУЛЬТИ-НАКЛАДНА) -->
         <div style="background: #ffffff; border: 1px solid #e5e5e0; border-radius: 14px; padding: 18px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+
+            <!-- ДОДАНО: ВИБІР МАГАЗИНУ ДЛЯ ЗАВОЗУ -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px dashed #e0e0dc; flex-wrap: wrap;">
+                <label style="font-weight: 700; color: #1b4332; font-size: 14px;">🏪 Куди здійснюється завіз (Магазин):</label>
+                <select id="supply-store-select" style="min-width: 240px; font-weight: 700; color: #1b4332; background: #e8f5e9; border: 1.5px solid #a5d6a7; border-radius: 8px; padding: 7px 12px; outline: none;">
+                    <!-- Наповнюється автоматично списком ваших магазинів -->
+                </select>
+            </div>
             
             <!-- КОНТЕЙНЕР РЯДКІВ ТОВАРІВ У ЗАВОЗІ -->
             <div id="supply-rows-container">
@@ -523,6 +531,7 @@
                 <thead>
                     <tr>
                         <th>Завіз №</th>
+                        <th>Магазин</th>
                         <th>Товар</th>
                         <th>К-сть</th>
                         <th>Ціна покупки</th>
@@ -1182,6 +1191,7 @@
             let selector = document.getElementById('global-store-selector');
             let assignStore = document.getElementById('assign-store-select');
             let assignSeller = document.getElementById('assign-seller-select');
+            let supplyStore = document.getElementById('supply-store-select');
 
             // 1. Верхній перемикач у шапці
             if (selector) {
@@ -1193,7 +1203,21 @@
                 selector.value = cur;
             }
 
-            // 2. Список магазинів для закріплення (додано варіант повного відкріплення)
+            // 2. Вибір магазину у формі завозу (ДОДАНО)
+            if (supplyStore) {
+                let curSupStore = supplyStore.value;
+                supplyStore.innerHTML = '';
+                stores.forEach(st => {
+                    supplyStore.innerHTML += `<option value="${st.id}">🏪 ${st.name}</option>`;
+                });
+                if (curSupStore && stores.some(s => s.id === curSupStore)) {
+                    supplyStore.value = curSupStore;
+                } else if (currentStoreId && currentStoreId !== 'all') {
+                    supplyStore.value = currentStoreId;
+                }
+            }
+
+            // 3. Список магазинів для закріплення (додано варіант повного відкріплення)
             if (assignStore) {
                 assignStore.innerHTML = '<option value="">Оберіть магазин</option>';
                 assignStore.innerHTML += '<option value="unassign" style="color: #c62828; font-weight: 700;">🔓 Відкріпити від усіх філій</option>';
@@ -2291,13 +2315,19 @@ function selectLatestSupplyBatch(force = false) {
                     let sellP = s.sellPrice ? `${parseFloat(s.sellPrice).toFixed(2)} грн` : '-';
                     let batchBadge = s.batchNum ? `<b style="color: #006442; background: #e8f5e9; padding: 3px 8px; border-radius: 6px;">№ ${s.batchNum}</b>` : '-';
 
+                    // 1. Знаходимо назву магазину за його ID (наприклад, "store-1" -> "Магазин №1")
+                    let storeObj = stores.find(st => st.id === (s.store || 'store-1'));
+                    let storeTitle = storeObj ? storeObj.name : (s.store || 'Основний магазин');
+
                     // Розумне візуальне групування партій
                     let isLastOfBatch = (index === arr.length - 1) || (arr[index + 1].batchNum !== s.batchNum);
                     let bNum = parseInt(s.batchNum) || index;
                     let batchClass = (bNum % 2 === 0 ? "batch-even" : "batch-odd") + (isLastOfBatch ? " batch-end" : "");
 
+                    // 2. Додаємо комірку <td> з магазином на 2-ге місце:
                     return `<tr class="${batchClass}">
                         <td>${batchBadge}</td>
+                        <td><span style="background: #e8f5e9; color: #1b4332; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 13px;">🏪 ${storeTitle}</span></td>
                         <td>${s.item.toUpperCase()}</td>
                         <td>${s.qty} кг</td>
                         <td>${parseFloat(s.price).toFixed(2)} грн</td>
@@ -2443,7 +2473,8 @@ function selectLatestSupplyBatch(force = false) {
             // Отримуємо унікальний номер завозу (з урахуванням звільнених)
             let batchNumber = getNextSupplyBatchNumber();
             let date = formatDateTime(new Date());
-            let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'store-1';
+            let storeSelectEl = document.getElementById('supply-store-select');
+            let activeStore = storeSelectEl ? storeSelectEl.value : ((currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'store-1');
 
             itemsToSupply.forEach(pos => {
                 if (!inventory[pos.item]) {
