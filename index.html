@@ -523,7 +523,12 @@
             <select id="filter-supply-batch" onchange="this.dataset.userSelected='true'; updateUI()" style="min-width: 130px; font-weight: 500;">
     <option value="">Всі завози</option>
 </select>
-            
+
+            <!-- ДОДАНО 4. Фільтр за магазином -->
+            <label style="font-weight: 500; margin-left: 10px;">Магазин:</label>
+            <select id="filter-supply-store" onchange="updateUI()" style="min-width: 170px; font-weight: 500;">
+                <option value="">Всі магазини</option>
+            </select>
         </div>
 
         <div class="table-card">
@@ -2214,6 +2219,18 @@ function selectLatestSupplyBatch(force = false) {
                     batchEl.value = String(sortedBatches[0]); // Якщо зайшли вперше — ставимо останній
                 }
             }
+
+            // ⬇️ ВСТАВИТИ ЦЕЙ НОВИЙ БЛОК №4 СЮДИ:
+            let supplyStoreFilter = document.getElementById('filter-supply-store');
+            if (supplyStoreFilter) {
+                let curSelectedStore = supplyStoreFilter.value;
+                supplyStoreFilter.innerHTML = '<option value="">Всі магазини</option>';
+                stores.forEach(st => {
+                    supplyStoreFilter.innerHTML += `<option value="${st.id}">🏪 ${st.name}</option>`;
+                });
+                if (curSelectedStore) supplyStoreFilter.value = curSelectedStore;
+            }
+            // ⬆️ КІНЕЦЬ НОВОГО БЛОКУ
         }
 
         function updateUI() {
@@ -2287,13 +2304,16 @@ function selectLatestSupplyBatch(force = false) {
             let supplyDateMode = document.getElementById('filter-supply-date-mode') ? document.getElementById('filter-supply-date-mode').value : "all";
             let supplyDateEl = document.querySelector('#filter-supply-date-container input');
             let supplyDateVal = supplyDateEl ? String(supplyDateEl.value).trim() : "";
-            
-            // Зчитуємо вибраний номер із нового списку:
             let filterSupplyBatch = document.getElementById('filter-supply-batch') ? document.getElementById('filter-supply-batch').value : "";
+            let filterSupplyStore = document.getElementById('filter-supply-store') ? document.getElementById('filter-supply-store').value : ""; // <-- ДОДАНО
 
             document.getElementById('supply-list').innerHTML = supplies.slice().reverse()
                 .filter(s => {
                     if (currentStoreId !== 'all' && (s.store || 'store-1') !== currentStoreId) return false;
+                    
+                    // Фільтр за обраним магазином у рядку фільтрів (ДОДАНО):
+                    if (filterSupplyStore && (s.store || 'store-1') !== filterSupplyStore) return false;
+
                     // 1. Фільтрація за номером завозу:
                     if (filterSupplyBatch && String(s.batchNum) !== String(filterSupplyBatch)) return false;
 
