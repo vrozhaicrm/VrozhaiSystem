@@ -388,7 +388,7 @@
             </div>
             <nav class="pill-nav" id="main-nav">
                 <button class="nav-btn active" onclick="switchTab(this, 'stock')">Склад</button>
-                <button class="nav-btn" onclick="switchTab(this, 'supply')">Завіз</button>
+                <button class="nav-btn" id="nav-btn-supply" onclick="switchTab(this, 'supply')">Завіз</button>
                 <button class="nav-btn" onclick="switchTab(this, 'sales')">Продажі</button>
                 <button class="nav-btn" onclick="switchTab(this, 'seller-tab')">Продавець</button>
                 <button class="nav-btn" onclick="switchTab(this, 'writeoff-tab')">Списання</button>
@@ -1443,7 +1443,26 @@ function renderStoresTable() {
                         avatarEl.style.background = "#e8f5e9"; // м'який зелений фон
                     }
                 }
+                
+                // --- ДОДАЄМО ВСТАНОВЛЕННЯ ІКОНКИ В ШАПЦІ: ---
+                let avatarEl = document.getElementById('user-avatar-badge');
+                if (avatarEl) {
+                    if (role === 'admin') {
+                        avatarEl.innerText = "👑";
+                        avatarEl.style.background = "#fff3e0"; // теплий золотистий фон
+                    } else {
+                        avatarEl.innerText = "🛒";
+                        avatarEl.style.background = "#e8f5e9"; // м'який зелений фон
+                    }
+                }
                 // ---------------------------------------------
+
+                // ⬇️ ВСТАВИТИ СЮДИ:
+                let supplyNavBtn = document.getElementById('nav-btn-supply');
+                if (supplyNavBtn) {
+                    supplyNavBtn.style.display = (role === 'admin') ? 'inline-block' : 'none';
+                }
+                // ⬆️ КІНЕЦЬ ВСТАВКИ
 
                 // ПРИ ВХОДІ ОДРАЗУ ПІДТЯГУЄМО СВІЖІ ДАНІ З ХМАРИ:
                 loadFromGoogle();
@@ -1581,6 +1600,13 @@ function renderStoresTable() {
         }
 
         function switchTab(btn, tabId) {
+            // ЗАХИСТ ВІД ДОСТУПУ ПРОДАВЦЯ (ДОДАНО):
+    let role = sessionStorage.getItem('userRole') || localStorage.getItem('userRole') || 'seller';
+    if (tabId === 'supply' && role !== 'admin') {
+        alert("🔒 Вкладка 'Завіз' доступна лише адміністраторам!");
+        return;
+    }
+            
     document.querySelectorAll('.pill-nav button').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
     showTab(tabId);
