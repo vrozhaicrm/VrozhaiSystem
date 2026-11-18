@@ -2986,7 +2986,7 @@ function editWriteOff(index) {
                     item: pos.item,
                     qty: pos.qty,
                     pricePerKg: pos.pricePerKg,
-                    totalSum: pos.totalSum.toFixed(2),
+                    totalSum: Number(pos.totalSum.toFixed(2)),
                     payType: payType,
                     seller: currentSeller,
                     store: activeStore // <-- ДОДАНО
