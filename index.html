@@ -393,6 +393,7 @@
                 <button class="nav-btn" onclick="switchTab(this, 'seller-tab')">Продавець</button>
                 <button class="nav-btn" onclick="switchTab(this, 'writeoff-tab')">Списання</button>
                 <button class="nav-btn" onclick="loadFromGoogle(true)" title="Оновити з Google" style="color: #006442;">🔄 Хмара</button>
+                <button class="nav-btn" id="admin-force-reload-btn" onclick="triggerForceReloadAll()" title="Перезавантажити сторінку на всіх пристроях" style="display: none; color: #c62828; font-weight: 700;">⚡ Оновити у всіх</button>
             </nav>
 
                 <div class="profile-card">
@@ -1470,6 +1471,11 @@ function renderStoresTable() {
                 if (supplyNavBtn) {
                     supplyNavBtn.style.display = (role === 'admin') ? 'inline-block' : 'none';
                 }
+
+                let forceReloadBtn = document.getElementById('admin-force-reload-btn');
+if (forceReloadBtn) {
+    forceReloadBtn.style.display = (role === 'admin') ? 'inline-block' : 'none';
+}
 
                 // ПРИ ВХОДІ ОДРАЗУ ПІДТЯГУЄМО СВІЖІ ДАНІ З ХМАРИ:
                 loadFromGoogle();
@@ -3487,6 +3493,72 @@ function filterAccounting() {
         }
 
         checkAuth();
+        // ================= СИСТЕМА ДИСТАНЦІЙНОГО ПЕРЕЗАВАНТАЖЕННЯ =================
+        let lastKnownReloadTime = localStorage.getItem('lastKnownReloadTime') || "0";
+
+        // 1. Відправка сигналу адміном
+        function triggerForceReloadAll() {
+            if (!confirm("Ви дійсно бажаєте примусово перезавантажити сторінку у всіх працівників?")) return;
+
+            let now = Date.now();
+            localStorage.setItem('lastKnownReloadTime', String(now));
+
+            fetch(GOOGLE_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type: "force_reload", timestamp: now })
+            });
+
+            alert("⚡ Сигнал надіслано! Протягом 15–20 секунд сторінки у всіх продавців оновляться автоматично.");
+        }
+
+        // 2. Фонова перевірка сигналу (працює на всіх пристроях раз на 20 сек)
+        function startReloadListener() {
+            setInterval(() => {
+                let isAuth = sessionStorage.getItem('isAuth') === 'true' || localStorage.getItem('isAuth') === 'true';
+                if (!isAuth) return;
+
+                fetch(`${GOOGLE_URL}?action=check_reload`)
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res && res.reloadTime) {
+                            let serverTime = String(res.reloadTime);
+                            
+                            if (!lastKnownReloadTime || lastKnownReloadTime === "0") {
+                                lastKnownReloadTime = serverTime;
+                                localStorage.setItem('lastKnownReloadTime', serverTime);
+                            } else if (serverTime > lastKnownReloadTime) {
+                                localStorage.setItem('lastKnownReloadTime', serverTime);
+                                showReloadNotificationAndRefresh();
+                            }
+                        }
+                    })
+                    .catch(() => {});
+            }, 20000);
+        }
+
+        // 3. Плашка сповіщення та скидання кешу браузера
+        function showReloadNotificationAndRefresh() {
+            let toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; top: 25px; right: 25px;
+                background: #1b4332; color: #ffffff;
+                padding: 16px 24px; border-radius: 12px;
+                font-size: 15px; font-weight: 600;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+                z-index: 999999; border: 1.5px solid #2d6a4f;
+            `;
+            toast.innerHTML = "🔄 Адміністратор оновив систему.<br><small style='font-size:12px;opacity:0.9;'>Сторінка зараз перезавантажиться...</small>";
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                window.location.href = window.location.pathname + '?v=' + Date.now();
+            }, 1800);
+        }
+
+        // Запуск перевірки
+        startReloadListener();
     </script>
 </body>
 </html>
