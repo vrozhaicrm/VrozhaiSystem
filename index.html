@@ -2437,7 +2437,7 @@ function selectLatestSupplyBatch(force = false) {
                         <td><b>${h.item.toUpperCase()}</b></td>
                         <td>${h.qty} кг</td>
                         <td>${(h.pricePerKg || 0).toFixed(2)} грн</td>
-                        <td style="font-weight: 700; color: #1b4332;">${(h.totalSum || 0).toFixed(2)} грн</td>
+                        <td style="font-weight: 700; color: #1b4332;">${((h.totalSum && parseFloat(h.totalSum) > 0) ? parseFloat(h.totalSum) : (parseFloat(h.qty) * parseFloat(h.pricePerKg) || 0)).toFixed(2)} грн</td>
                         <td><span style="background: #f0f0ec; padding: 3px 8px; border-radius: 6px; font-size: 13px;">${payment}</span></td>
                         <td><small style="color: #555; font-weight: 500;">${formatDateTime(h.date)}</small></td>
                         <td><b style="color: #1b4332;">${sellerName}</b></td>
@@ -2917,9 +2917,9 @@ function editWriteOff(index) {
                 let qty = parseFloat(r.querySelector('.sell-qty').value);
                 let pricePerKg = parseFloat(r.querySelector('.sell-price').value);
 
-                if (!item || isNaN(qty) || isNaN(pricePerKg) || qty <= 0) {
-                    return alert("Будь ласка, оберіть товар та вкажіть вагу для кожної позиції!");
-                }
+                if (!item || isNaN(qty) || isNaN(pricePerKg) || qty <= 0 || pricePerKg <= 0) {
+    return alert("Будь ласка, перевірте товар: вага та ціна за 1 кг обов'язково мають бути більшими за 0!");
+}
                 if (!inventory[item] || inventory[item].kg < qty) {
                     return alert(`На складі недостатньо товару: ${item.toUpperCase()} (залишок: ${inventory[item] ? inventory[item].kg : 0} кг)!`);
                 }
