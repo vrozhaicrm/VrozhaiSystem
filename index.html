@@ -445,7 +445,6 @@
                     <th>Товар</th>
                     <th>Залишок (кг)</th>
                     <th>Критична к-сть</th>
-                    <th>Ціна покупки</th>
                     <th>Рек. ціна продажу</th>
                     <th>Орієнтовна каса</th>
                     <th>Дії</th>
@@ -2321,7 +2320,6 @@ function selectLatestSupplyBatch(force = false) {
                     <td>${item.toUpperCase()}</td>
                     <td style="${colorStyle}">${data.kg} кг ${warningBadge}</td>
                     ${critCellHTML}
-                    <td>${buyPrice.toFixed(2)} грн</td>
                     <td><b>${sellPrice.toFixed(2)} грн</b></td>
                     <td style="color: #2e7d32; font-weight: bold;">${itemTotalWorth.toFixed(2)} грн</td>
                     <td>
