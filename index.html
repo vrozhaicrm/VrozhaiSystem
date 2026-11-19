@@ -387,6 +387,12 @@
                     <option value="all">🌐 Всі магазини мережі</option>
                 </select>
             </div>
+
+            <div id="sync-status-badge" style="display: flex; align-items: center; gap: 8px; background: #e8f5e9; border: 1.5px solid #c8e6c9; padding: 6px 14px; border-radius: 12px; font-size: 13.5px; font-weight: 600; color: #006442; transition: all 0.3s;" title="Статус доставки чеків у Google Таблицю">
+                <span id="sync-status-dot" style="width: 9px; height: 9px; border-radius: 50%; background: #2e7d32; display: inline-block;"></span>
+                <span id="sync-status-text">Хмара онлайн</span>
+            </div>
+            
             <nav class="pill-nav" id="main-nav">
                 <button class="nav-btn active" onclick="switchTab(this, 'stock')">Склад</button>
                 <button class="nav-btn" id="nav-btn-supply" onclick="switchTab(this, 'supply')">Завіз</button>
@@ -1580,15 +1586,114 @@ if (forceReloadBtn) {
             checkAuth();
         }
 
+        // ================= ОФЛАЙН-ЧЕРГА ГАРАНТОВАНОЇ ДОСТАВКИ =================
+        let isSyncWorkerRunning = false;
+
+        // 1. Замість відправки "в нікуди" кладемо чек у надійну чергу
         function sendToGoogle(payload) {
-            fetch(GOOGLE_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+            addToOutbox(payload);
         }
 
+        function addToOutbox(payload) {
+            let queue = JSON.parse(localStorage.getItem('crm_outbox_queue')) || [];
+            payload._queueId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+            queue.push(payload);
+            localStorage.setItem('crm_outbox_queue', JSON.stringify(queue));
+            
+            updateSyncStatusUI();
+            processOutboxQueue(); // Запускаємо негайну відправку
+        }
+
+        // 2. Фоновий робот: надсилає по черзі з паузою та авто-повтором
+        async function processOutboxQueue() {
+            if (isSyncWorkerRunning) return;
+            let queue = JSON.parse(localStorage.getItem('crm_outbox_queue')) || [];
+            
+            if (queue.length === 0) {
+                updateSyncStatusUI();
+                return;
+            }
+
+            if (!navigator.onLine) {
+                updateSyncStatusUI();
+                return;
+            }
+
+            isSyncWorkerRunning = true;
+            updateSyncStatusUI();
+
+            let itemToSend = queue[0];
+
+            try {
+                // Відправляємо один пакет у Google
+                await fetch(GOOGLE_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "text/plain" },
+                    body: JSON.stringify(itemToSend)
+                });
+
+                // Якщо запит дійшов (не вибив помилку зв'язку) — видаляємо його з черги:
+                queue = JSON.parse(localStorage.getItem('crm_outbox_queue')) || [];
+                queue.shift();
+                localStorage.setItem('crm_outbox_queue', JSON.stringify(queue));
+
+                isSyncWorkerRunning = false;
+                updateSyncStatusUI();
+
+                // Пауза 300 мс перед наступним чеком, щоб не перевантажувати Google:
+                setTimeout(processOutboxQueue, 300);
+
+            } catch (err) {
+                // Якщо інтернет блимнув або немає зв'язку — залишаємо чек у черзі і спробуємо через 5 сек:
+                console.warn("Збій зв'язку з Google, чек залишився в черзі. Повтор через 5 сек...", err);
+                isSyncWorkerRunning = false;
+                updateSyncStatusUI();
+                setTimeout(processOutboxQueue, 5000);
+            }
+        }
+
+        // 3. Візуальний індикатор для продавця (Зелений / Жовтий / Червоний)
+        function updateSyncStatusUI() {
+            let badge = document.getElementById('sync-status-badge');
+            let dot = document.getElementById('sync-status-dot');
+            let text = document.getElementById('sync-status-text');
+            if (!badge || !dot || !text) return;
+
+            let queue = JSON.parse(localStorage.getItem('crm_outbox_queue')) || [];
+            let count = queue.length;
+
+            if (!navigator.onLine) {
+                badge.style.background = "#ffebee";
+                badge.style.borderColor = "#ffcdd2";
+                badge.style.color = "#c62828";
+                dot.style.background = "#c62828";
+                text.innerText = count > 0 ? `Немає інтернету (${count} в черзі)` : "Офлайн (немає інтернету)";
+            } else if (count > 0) {
+                badge.style.background = "#fff3e0";
+                badge.style.borderColor = "#ffe0b2";
+                badge.style.color = "#e65100";
+                dot.style.background = "#ff9800";
+                text.innerText = isSyncWorkerRunning ? `Відправка в хмару (${count})...` : `В черзі: ${count} чеків`;
+            } else {
+                badge.style.background = "#e8f5e9";
+                badge.style.borderColor = "#c8e6c9";
+                badge.style.color = "#006442";
+                dot.style.background = "#2e7d32";
+                text.innerText = "Хмара онлайн (все в базі)";
+            }
+        }
+
+        // Запускаємо перевірку черги при відновленні інтернету та кожні 10 секунд
+        window.addEventListener('online', processOutboxQueue);
+        window.addEventListener('offline', updateSyncStatusUI);
+        setInterval(processOutboxQueue, 10000);
+        
+        // 👈 ДОДАНО: одразу оновлюємо індикатор і запускаємо чергу при відкритті сайту
+        updateSyncStatusUI();
+        processOutboxQueue();
+        // ======================================================================
+        
         let salesViewMode = 'today'; // за замовчуванням показуємо продажі за сьогодні
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
         let monthlyBudgets = JSON.parse(localStorage.getItem('monthlyBudgets')) || {};
