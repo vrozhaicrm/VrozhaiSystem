@@ -1119,6 +1119,12 @@
         
         // ЗАВАНТАЖЕННЯ ДАНИХ З GOOGLE ТАБЛИЦІ (ЗІ ЗБЕРЕЖЕННЯМ КРИТИЧНИХ ЛІМІТІВ)
         function loadFromGoogle(showNotify = false) {
+            let pendingQueue = JSON.parse(localStorage.getItem('crm_outbox_queue')) || [];
+            if (pendingQueue.length > 0) {
+                processOutboxQueue();
+                if (showNotify) alert(`⏳ Зачекайте, ще відправляються дані в хмару (${pendingQueue.length} в черзі). Спробуйте за кілька секунд.`);
+                return;
+            }
             let badge = document.getElementById('user-badge');
             let originalText = badge ? badge.innerText : "";
             if (badge) badge.innerText = "⏳ Оновлення з хмари...";
@@ -2663,6 +2669,7 @@ function selectLatestSupplyBatch(force = false) {
                 inventory[pos.item].kg = parseFloat((inventory[pos.item].kg + pos.qty).toFixed(3));
                 inventory[pos.item].buyPrice = pos.price;
                 inventory[pos.item].sellPrice = pos.sellPrice; // завжди остання найсвіжіша рек. ціна!
+                inventory[pos.item].store = activeStore;
 
                 // Додаємо нову партію в кінець черги
                 inventory[pos.item].batches.push({
@@ -2680,22 +2687,15 @@ function selectLatestSupplyBatch(force = false) {
                     sellPrice: pos.sellPrice,
                     store: activeStore // <-- ДОДАНО
                 });
+                 });
 
                 sendToGoogle({
-                    type: "supply",
-                    batchNum: batchNumber,
-                    date: date,
-                    item: pos.item,
-                    qty: pos.qty,
-                    price: pos.price,
-                    sellPrice: pos.sellPrice,
-                    total: pos.total,
-                    store: activeStore // <-- ДОДАНО
-                });
+                type: "supply_batch",
+                batchNum: batchNumber,
+                date: date,
+                store: activeStore,
+                items: itemsToSupply
             });
-
-            sendToGoogle({ type: "sync_stock", inventory: inventory });
-            sendToGoogle({ type: "sync_supplies", supplies: supplies });
 
             // Скидаємо форму завозу до 1 порожнього рядка
             let container = document.getElementById('supply-rows-container');
@@ -2806,7 +2806,7 @@ function calcWriteOffLoss() {
                 user: currentUser,
                 store: activeStore
             });
-            sendToGoogle({ type: "sync_stock", inventory: inventory });
+            
 
             document.getElementById('wo-qty').value = "";
             document.getElementById('wo-cost-preview').value = "";
@@ -2833,7 +2833,7 @@ function calcWriteOffLoss() {
                 localStorage.setItem('writeOffs', JSON.stringify(writeOffs));
 
                 sendToGoogle({ type: "sync_write_offs", writeOffs: writeOffs });
-                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "adjust_stock_item", item: wo.item, deltaKg: wo.qty, store: wo.store || 'store-1' });
 
                 updateUI();
                 renderWriteOffs();
@@ -2880,7 +2880,7 @@ function editWriteOff(index) {
 
     // Синхронізуємо зі складом та Google Таблицею
     sendToGoogle({ type: "sync_write_offs", writeOffs: writeOffs });
-    sendToGoogle({ type: "sync_stock", inventory: inventory });
+    sendToGoogle({ type: "adjust_stock_item", item: wo.item, deltaKg: -diffKg, store: wo.store || 'store-1' });
 
     updateUI();
     renderWriteOffs();
@@ -3105,8 +3105,6 @@ function editWriteOff(index) {
                 });
             });
 
-            sendToGoogle({ type: "sync_stock", inventory: inventory });
-
             // Скидаємо чек до одного початкового рядка
             let container = document.getElementById('sale-rows-container');
             container.innerHTML = `
@@ -3128,9 +3126,10 @@ function editWriteOff(index) {
         function deleteItem(item) {
             if (confirm(`Видалити ${item.toUpperCase()} зі складу?`)) { 
                 delete inventory[item]; 
-                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "delete_stock_item", item: item });
                 updateUI(); 
             }
+
         }
 
         function editItem(item) {
@@ -3144,7 +3143,7 @@ function editWriteOff(index) {
                 } else {
                     inventory[item] = { kg: value, buyPrice: 0 };
                 }
-                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "update_stock_item", item: item, exactKg: value, store: inventory[item].store || 'store-1' });
                 updateUI();
             }
         }
@@ -3167,7 +3166,7 @@ function editWriteOff(index) {
                 
                 // Миттєво зберігаємо в пам'ять браузера:
                 localStorage.setItem('inventory', JSON.stringify(inventory));
-                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "update_stock_item", item: item, exactCrit: parseFloat(val), store: inventory[item].store || 'store-1' });
                 updateUI();
             }
         }
@@ -3181,7 +3180,7 @@ function editWriteOff(index) {
                 }
                 supplies.splice(index, 1);
                 
-                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "adjust_stock_item", item: s.item, deltaKg: -s.qty, store: s.store || 'store-1' });
                 sendToGoogle({ type: "sync_supplies", supplies: supplies });
                 updateUI();
             }
@@ -3205,7 +3204,7 @@ function editWriteOff(index) {
                     inventory[s.item].sellPrice = s.sellPrice;
                 }
                 
-                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "adjust_stock_item", item: s.item, deltaKg: diffKg, buyPrice: s.price, sellPrice: s.sellPrice, store: s.store || 'store-1' });
                 sendToGoogle({ type: "sync_supplies", supplies: supplies });
                 updateUI();
             }
@@ -3219,7 +3218,7 @@ function editWriteOff(index) {
                 }
                 history.splice(index, 1);
                 
-                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "adjust_stock_item", item: h.item, deltaKg: h.qty, store: h.store || 'store-1' });
                 sendToGoogle({ type: "sync_sales", history: history });
                 updateUI();
             }
@@ -3247,7 +3246,7 @@ function editWriteOff(index) {
                 h.pricePerKg = parsedPrice;
                 h.totalSum = parsedQty * parsedPrice;
 
-                sendToGoogle({ type: "sync_stock", inventory: inventory });
+                sendToGoogle({ type: "adjust_stock_item", item: h.item, deltaKg: -diffKg, store: h.store || 'store-1' });
                 sendToGoogle({ type: "sync_sales", history: history });
                 updateUI();
             }
