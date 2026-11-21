@@ -2400,10 +2400,13 @@ function selectLatestSupplyBatch(force = false) {
             let stockDateEl = document.querySelector('#filter-stock-date-container input');
             let stockDateVal = stockDateEl ? String(stockDateEl.value).trim() : "";
 
-            for (let item in inventory) {
+            // Сортуємо товари в алфавітному порядку українською мовою (від А до Я):
+            let sortedItems = Object.keys(inventory).sort((a, b) => a.localeCompare(b, 'uk', { sensitivity: 'base' }));
+
+            for (let item of sortedItems) {
                 let data = inventory[item];
 
-                // 1. Округлюємо залишок до грамів (максимум 3 знаки) без нескінченних хвостів:
+                // 1. Округлюємо залишок до грамів...
                 let cleanKg = parseFloat(Number(data.kg || 0).toFixed(3));
                 data.kg = cleanKg;
 
