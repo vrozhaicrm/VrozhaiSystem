@@ -581,7 +581,7 @@
             <!-- ПАНЕЛЬ ДІЙ, ОПЛАТИ ТА ПІДСУМКУ -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #e0e0dc; flex-wrap: wrap; gap: 12px;">
                 
-                <!-- ЗЛІВА: ДОДАТИ ПОЗИЦІЮ, ТИП ОПЛАТИ, РАЗОМ ЧЕКА -->
+                <!-- ЗЛІВА: ДОДАТИ ПОЗИЦІЮ, ТИП ОПЛАТИ, РАЗОМ ЧЕКА ТА КАЛЬКУЛЯТОР РЕШТИ -->
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <button type="button" class="action-btn" onclick="addSaleItemRow()" 
                             style="background: #e8f5e9; border-color: #a5d6a7; color: #006442; font-weight: 700; padding: 8px 14px; font-size: 14px;" 
@@ -596,7 +596,14 @@
                     </select>
 
                     <input type="text" id="sell-total-preview" placeholder="Разом: 0 грн" readonly 
-                           style="background: #e8f5e9; width: 160px; cursor: not-allowed; font-weight: 800; color: #006442; border: 1.5px solid #81c784; font-size: 15px;">
+                           style="background: #e8f5e9; width: 150px; cursor: not-allowed; font-weight: 800; color: #006442; border: 1.5px solid #81c784; font-size: 15px;">
+
+                    <!-- КАЛЬКУЛЯТОР РЕШТИ (ІНФОРМАТИВНИЙ) -->
+                    <input type="number" id="cash-received" placeholder="💵 Отримано (грн)" oninput="calcChange()" 
+                           style="width: 155px; font-weight: 600; border: 1.5px solid #dcdbd6;" title="Введіть купюру від клієнта">
+
+                    <input type="text" id="cash-change" placeholder="Решта: 0.00 грн" readonly 
+                           style="background: #fafaf7; width: 175px; cursor: not-allowed; font-weight: 800; color: #1b4332; border: 1.5px solid #dcdbd6;" title="Сума решти покупцю">
                 </div>
 
                 <!-- СПРАВА: КНОПКА ПРОДАТИ (ЗСУНУТА В КРАЙ) -->
@@ -3019,6 +3026,47 @@ function editWriteOff(index) {
 
             let preview = document.getElementById('sell-total-preview');
             preview.value = (grandTotal > 0) ? `Разом: ${grandTotal.toFixed(2)} грн` : "";
+
+            calcChange(); // 👈 ДОДАНО: миттєво оновлює решту
+        }
+
+        // АВТОМАТИЧНИЙ РОЗРАХУНОК РЕШТИ (КЛІЄНТСЬКИЙ КАЛЬКУЛЯТОР)
+        function calcChange() {
+            let recEl = document.getElementById('cash-received');
+            let chgEl = document.getElementById('cash-change');
+            if (!recEl || !chgEl) return;
+
+            let received = parseFloat(recEl.value);
+            
+            // Рахуємо поточну суму товарів у чеку
+            let rows = document.querySelectorAll('.sale-item-row');
+            let grandTotal = 0;
+            rows.forEach(r => {
+                let qty = parseFloat(r.querySelector('.sell-qty').value) || 0;
+                let price = parseFloat(r.querySelector('.sell-price').value) || 0;
+                grandTotal += (qty * price);
+            });
+
+            if (isNaN(received) || received <= 0 || grandTotal <= 0) {
+                chgEl.value = "";
+                chgEl.style.background = "#fafaf7";
+                chgEl.style.color = "#1b4332";
+                chgEl.style.borderColor = "#dcdbd6";
+                return;
+            }
+
+            let diff = received - grandTotal;
+            if (diff >= 0) {
+                chgEl.value = `Решта: ${diff.toFixed(2)} грн`;
+                chgEl.style.background = "#e8f5e9";
+                chgEl.style.color = "#006442";
+                chgEl.style.borderColor = "#81c784";
+            } else {
+                chgEl.value = `Не вистачає: ${Math.abs(diff).toFixed(2)} грн`;
+                chgEl.style.background = "#ffebee";
+                chgEl.style.color = "#c62828";
+                chgEl.style.borderColor = "#ffcdd2";
+            }
         }
 
         // ПРОВЕДЕННЯ ЧЕКА (МУЛЬТИ-ПОЗИЦІЇ)
@@ -3125,6 +3173,16 @@ function editWriteOff(index) {
             document.getElementById('sell-total-preview').value = "";
             
             updateUI();
+            // Очищаємо калькулятор решти для наступного клієнта:
+            let recInput = document.getElementById('cash-received');
+            let chgInput = document.getElementById('cash-change');
+            if (recInput) recInput.value = "";
+            if (chgInput) {
+                chgInput.value = "";
+                chgInput.style.background = "#fafaf7";
+                chgInput.style.borderColor = "#dcdbd6";
+                chgInput.style.color = "#1b4332";
+            }
         }
         function deleteItem(item) {
             if (confirm(`Видалити ${item.toUpperCase()} зі складу?`)) { 
