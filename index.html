@@ -466,6 +466,18 @@
     <!-- ЗАВІЗ -->
     <div id="supply" class="tab">
         <div class="section-title">Оприбуткування товару (Партія завозу)</div>
+
+        <!-- БЛОК СТВОРЕННЯ НОВОГО ТОВАРУ В ДОВІДНИК -->
+        <div style="background: #ffffff; border: 1.5px dashed #81c784; border-radius: 14px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span style="font-weight: 700; color: #006442; font-size: 14px;">✨ Створити новий товар у базі:</span>
+            <input type="text" id="catalog-new-item" placeholder="Назва товару (напр: Яблуко Чемпіон)" style="min-width: 230px;">
+            <input type="number" id="catalog-new-sell-price" placeholder="Рек. ціна продажу (грн)" style="width: 180px;">
+            <input type="number" id="catalog-new-crit" placeholder="Крит. залишок (кг)" style="width: 140px;" value="5">
+            <button class="primary-btn" onclick="addNewProductToCatalog()" style="padding: 8px 18px; font-size: 13.5px; background: #006442;">+ Додати в довідник</button>
+        </div>
+
+        <!-- СПИСОК ПІДКАЗОК ДЛЯ ПОЛЯ ВВОДУ -->
+        <datalist id="products-datalist"></datalist>
         
         <!-- ПАНЕЛЬ ВВЕДЕННЯ ЗАВОЗУ (МУЛЬТИ-НАКЛАДНА) -->
         <div style="background: #ffffff; border: 1px solid #e5e5e0; border-radius: 14px; padding: 18px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
@@ -481,7 +493,7 @@
             <!-- КОНТЕЙНЕР РЯДКІВ ТОВАРІВ У ЗАВОЗІ -->
             <div id="supply-rows-container">
                 <div class="supply-item-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
-                    <input type="text" class="sup-item" placeholder="Назва товару" style="min-width: 170px;">
+                    <input type="text" class="sup-item" list="products-datalist" oninput="onSelectSupplyItem(this)" placeholder="Почніть вводити назву..." style="min-width: 170px;">
                     <input type="number" class="sup-qty" placeholder="Кг" oninput="calcSupplyTotals()" style="width: 95px;">
                     <input type="number" class="sup-price" placeholder="Ціна покупки (грн/кг)" oninput="calcSupplyTotals()" style="width: 160px;">
                     <input type="number" class="sup-sell-price" placeholder="Рек. ціна (грн/кг)" style="width: 160px;">
@@ -2393,6 +2405,7 @@ function selectLatestSupplyBatch(force = false) {
         }
 
         function updateUI() {
+            updateProductDatalist();
             // Наповнюємо списки фільтрів актуальними товарами та продавцями
             populateFilterDropdowns();
             document.querySelectorAll('.sell-item').forEach(sel => fillItemOptions(sel));
@@ -2597,6 +2610,86 @@ function selectLatestSupplyBatch(force = false) {
             return nextNum;
         }
 
+        // 1. ДОДАВАННЯ НОВОГО ТОВАРУ В ДОВІДНИК (З ВКЛАДКИ ЗАВІЗ)
+        function addNewProductToCatalog() {
+            let nameInput = document.getElementById('catalog-new-item');
+            let priceInput = document.getElementById('catalog-new-sell-price');
+            let critInput = document.getElementById('catalog-new-crit');
+
+            let name = nameInput.value.trim().toLowerCase();
+            let sellPrice = parseFloat(priceInput.value) || 0;
+            let critKg = parseFloat(critInput.value) || 5;
+
+            if (!name) return alert("Введіть назву нового товару!");
+            if (inventory[name]) return alert(`Товар "${name.toUpperCase()}" вже є в довіднику! Оберіть його зі списку при введенні.`);
+
+            let activeStore = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'store-1';
+
+            // Реєструємо товар у системі
+            inventory[name] = {
+                kg: 0,
+                buyPrice: 0,
+                sellPrice: sellPrice,
+                critKg: critKg,
+                batches: [],
+                store: activeStore
+            };
+
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+
+            sendToGoogle({
+                type: "update_stock_item",
+                item: name,
+                exactKg: 0,
+                exactCrit: critKg,
+                sellPrice: sellPrice,
+                store: activeStore
+            });
+
+            nameInput.value = "";
+            priceInput.value = "";
+            critInput.value = "5";
+
+            updateUI();
+            alert(`✅ Товар "${name.toUpperCase()}" додано в довідник! Тепер просто почніть писати його назву в накладній нижче.`);
+        }
+
+        // 2. ОНОВЛЕННЯ СПИСКУ ПІДКАЗОК (ДЛЯ ВСІХ ІСНУЮЧИХ ТОВАРІВ)
+        function updateProductDatalist() {
+            let dl = document.getElementById('products-datalist');
+            if (!dl) return;
+            dl.innerHTML = "";
+
+            let sorted = Object.keys(inventory).sort((a, b) => a.localeCompare(b, 'uk'));
+            sorted.forEach(it => {
+                let opt = document.createElement('option');
+                opt.value = it;
+                opt.label = `(Рек: ${(inventory[it].sellPrice || 0).toFixed(2)} грн)`;
+                dl.appendChild(opt);
+            });
+        }
+
+        // 3. АВТОПІДСТАНОВКА ЦІН, КОЛИ ОБРАЛИ ТОВАР ЗІ СПИСКУ
+        function onSelectSupplyItem(input) {
+            let val = input.value.trim().toLowerCase();
+            let row = input.closest('.supply-item-row');
+            if (!row) return;
+
+            if (inventory[val]) {
+                let buyPriceInput = row.querySelector('.sup-price');
+                let sellPriceInput = row.querySelector('.sup-sell-price');
+
+                // Підтягуємо збережені ціни, якщо продавець їх ще не ввів
+                if (!sellPriceInput.value && inventory[val].sellPrice) {
+                    sellPriceInput.value = inventory[val].sellPrice;
+                }
+                if (!buyPriceInput.value && inventory[val].buyPrice) {
+                    buyPriceInput.value = inventory[val].buyPrice;
+                }
+            }
+            calcSupplyTotals();
+        }
+
         // ДОДАВАННЯ НОВОГО РЯДКА В ЗАВІЗ ПО КНОПЦІ ПЛЮС
         function addSupplyItemRow() {
             let container = document.getElementById('supply-rows-container');
@@ -2605,7 +2698,7 @@ function selectLatestSupplyBatch(force = false) {
             div.style.cssText = 'display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;';
             
             div.innerHTML = `
-                <input type="text" class="sup-item" placeholder="Назва товару" style="min-width: 170px;">
+                <input type="text" class="sup-item" list="products-datalist" oninput="onSelectSupplyItem(this)" placeholder="Почніть вводити назву..." style="min-width: 170px;">
                 <input type="number" class="sup-qty" placeholder="Кг" oninput="calcSupplyTotals()" style="width: 95px;">
                 <input type="number" class="sup-price" placeholder="Ціна покупки (грн/кг)" oninput="calcSupplyTotals()" style="width: 160px;">
                 <input type="number" class="sup-sell-price" placeholder="Рек. ціна (грн/кг)" style="width: 160px;">
@@ -2651,6 +2744,11 @@ function selectLatestSupplyBatch(force = false) {
 
                 if (!item || isNaN(qty) || isNaN(price) || isNaN(sellPrice) || qty <= 0) {
                     return alert("Будь ласка, заповніть назву товару, вагу та обидві ціни для кожного рядка!");
+                }
+
+                // ЗАХИСТ ВІД ОДРУКІВ:
+                if (!inventory[item]) {
+                    return alert(`Товару "${item.toUpperCase()}" ще немає в базі!\n\nБудь ласка, створіть його в полі "✨ Створити новий товар у базі" вгорі цієї вкладки.`);
                 }
 
                 itemsToSupply.push({ item, qty, price, sellPrice, total: (qty * price).toFixed(2) });
@@ -2711,7 +2809,7 @@ function selectLatestSupplyBatch(force = false) {
             let container = document.getElementById('supply-rows-container');
             container.innerHTML = `
                 <div class="supply-item-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
-                    <input type="text" class="sup-item" placeholder="Назва товару" style="min-width: 170px;">
+                    <input type="text" class="sup-item" list="products-datalist" oninput="onSelectSupplyItem(this)" placeholder="Почніть вводити назву..." style="min-width: 170px;">
                     <input type="number" class="sup-qty" placeholder="Кг" oninput="calcSupplyTotals()" style="width: 95px;">
                     <input type="number" class="sup-price" placeholder="Ціна покупки (грн/кг)" oninput="calcSupplyTotals()" style="width: 160px;">
                     <input type="number" class="sup-sell-price" placeholder="Рек. ціна (грн/кг)" style="width: 160px;">
