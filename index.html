@@ -467,6 +467,22 @@
     <div id="supply" class="tab">
         <div class="section-title">Оприбуткування товару (Партія завозу)</div>
 
+        <!-- ПАНЕЛЬ ШВИДКОЇ ЗАЯВКИ НА ЗАКУПКУ -->
+        <div style="background: #ffffff; border: 1.5px solid #c8e6c9; border-radius: 14px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 24px;">📋</span>
+                <div>
+                    <div style="font-weight: 700; color: #1b4332; font-size: 15px;">Помічник закупника на оптовий ринок</div>
+                    <div style="font-size: 13px; color: #666;">Автоматично знаходить товари, що закінчуються, і розраховує замовлення</div>
+                </div>
+            </div>
+            <button type="button" class="action-btn" onclick="openProcurementModal()" 
+                    style="background: #006442; color: #ffffff; font-weight: 700; border-color: #006442; padding: 9px 18px; border-radius: 10px; font-size: 14px; cursor: pointer;">
+                📝 Сформувати список на закупку <span id="low-stock-count-badge" style="background: #ffffff; color: #006442; padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-size: 12px; font-weight: 800;">0</span>
+            </button>
+        </div>
+
+
         <!-- БЛОК СТВОРЕННЯ НОВОГО ТОВАРУ В ДОВІДНИК -->
         <div style="background: #ffffff; border: 1.5px dashed #81c784; border-radius: 14px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <span style="font-weight: 700; color: #006442; font-size: 14px;">✨ Створити новий товар у базі:</span>
@@ -2406,6 +2422,7 @@ function selectLatestSupplyBatch(force = false) {
 
         function updateUI() {
             updateProductDatalist();
+            updateLowStockBadge();
             // Наповнюємо списки фільтрів актуальними товарами та продавцями
             populateFilterDropdowns();
             document.querySelectorAll('.sell-item').forEach(sel => fillItemOptions(sel));
@@ -2819,6 +2836,105 @@ function selectLatestSupplyBatch(force = false) {
             `;
             document.getElementById('supply-total-preview').value = "";
             updateUI();
+        }
+
+        // 1. ВІДКРИТТЯ ТА ФОРМУВАННЯ СПИСКУ ЗАКУПКИ
+        function openProcurementModal() {
+            let activeStoreId = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
+            let storeObj = stores.find(s => s.id === activeStoreId);
+            let storeName = storeObj ? storeObj.name : "Всі магазини мережі";
+
+            let now = new Date();
+            let dateStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
+
+            let lowStockItems = [];
+
+            // Шукаємо товари, у яких залишок менший або дорівнює критичній нормі
+            for (let it in inventory) {
+                let data = inventory[it];
+                let curKg = parseFloat(data.kg) || 0;
+                let critKg = (data.critKg !== undefined && data.critKg !== null) ? parseFloat(data.critKg) : 5;
+
+                // Якщо залишок критичний
+                if (curKg <= critKg) {
+                    // Рекомендований закуп: поповнення до 3-кратного розміру критичного запасу
+                    let targetStock = critKg * 3;
+                    let toBuy = Math.max(5, Math.ceil(targetStock - curKg));
+
+                    lowStockItems.push({
+                        name: it.toUpperCase(),
+                        current: curKg,
+                        crit: critKg,
+                        toBuy: toBuy
+                    });
+                }
+            }
+
+            // Сортуємо: найбільш дефіцитні товари (де менше всього лишилося) — перші в списку
+            lowStockItems.sort((a, b) => a.current - b.current);
+
+            let msg = `🍏 ЗАМОВЛЕННЯ НА ЗАКУПКУ — ${dateStr}\n`;
+            msg += `🏪 Філія: ${storeName}\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+
+            if (lowStockItems.length === 0) {
+                msg += `🎉 Всі товари в достатній кількості!\nЖодна позиція не перетнула критичну межу.`;
+            } else {
+                lowStockItems.forEach(item => {
+                    msg += `• ${item.name}: залишок ${item.current} кг (крит: ${item.crit} кг) ➔ докупити: ~${item.toBuy} кг\n`;
+                });
+                msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+                msg += `Всього позицій до закупки: ${lowStockItems.length} шт.`;
+            }
+
+            document.getElementById('procurement-text-area').value = msg;
+            let modal = document.getElementById('procurement-modal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        // 2. ЗАКРИТТЯ ВІКНА
+        function closeProcurementModal() {
+            let modal = document.getElementById('procurement-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // 3. КОПІЮВАННЯ В БУФЕР ОБМІНУ
+        function copyProcurementText() {
+            let area = document.getElementById('procurement-text-area');
+            if (!area) return;
+
+            area.select();
+            area.setSelectionRange(0, 99999); // Для телефонів
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(area.value).then(() => {
+                    alert("✅ Список успішно скопійовано! Вставляйте його у Viber або Telegram.");
+                }).catch(() => {
+                    document.execCommand('copy');
+                    alert("✅ Скопійовано в буфер обміну!");
+                });
+            } else {
+                document.execCommand('copy');
+                alert("✅ Скопійовано в буфер обміну!");
+            }
+        }
+
+        // 4. ОНОВЛЕННЯ ЦИФРИ НА БЕЙДЖІ (СКІЛЬКИ ТОВАРІВ ЗАКІНЧУЄТЬСЯ)
+        function updateLowStockBadge() {
+            let badge = document.getElementById('low-stock-count-badge');
+            if (!badge) return;
+
+            let count = 0;
+            for (let it in inventory) {
+                let data = inventory[it];
+                let curKg = parseFloat(data.kg) || 0;
+                let critKg = (data.critKg !== undefined && data.critKg !== null) ? parseFloat(data.critKg) : 5;
+                if (curKg <= critKg) count++;
+            }
+
+            badge.innerText = count;
+            badge.style.background = count > 0 ? "#ffebee" : "#ffffff";
+            badge.style.color = count > 0 ? "#c62828" : "#006442";
         }
 
         // ПІДТЯГУВАННЯ СОБІВАРТОСТІ ПРИ ВИБОРІ ТОВАРУ ДЛЯ СПИСАННЯ
@@ -3830,6 +3946,32 @@ function filterAccounting() {
 
         // Запуск перевірки
         startReloadListener();
-    </script>
+        </script>
+
+ <!-- МОДАЛЬНЕ ВІКНО СПИСКУ НА ЗАКУПКУ -->
+    <div id="procurement-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.45); z-index: 99999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+        <div style="background: #ffffff; border-radius: 18px; padding: 24px; width: 100%; max-width: 580px; box-shadow: 0 10px 35px rgba(0,0,0,0.2); border: 1px solid #e0dfd9; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <div style="font-weight: 700; font-size: 17px; color: #1b4332; display: flex; align-items: center; gap: 8px;">
+                    <span>🍏 Список товарів для закупки</span>
+                </div>
+                <button type="button" onclick="closeProcurementModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #888; font-weight: bold;">✖</button>
+            </div>
+            
+            <p style="font-size: 13.5px; color: #666; margin: 0 0 12px 0;">
+                Список сформовано за товарами, залишок яких менший за критичний ліміт. Можете відредагувати текст перед копіюванням:
+            </p>
+
+            <textarea id="procurement-text-area" rows="11" style="width: 100%; border: 1.5px solid #dcdbd6; border-radius: 10px; padding: 12px; font-size: 13.5px; font-family: monospace; outline: none; resize: vertical; line-height: 1.5; background: #fafaf7; box-sizing: border-box;"></textarea>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 10px;">
+                <button type="button" class="action-btn" onclick="closeProcurementModal()" style="padding: 9px 18px; font-weight: 600;">Закрити</button>
+                <button type="button" class="primary-btn" onclick="copyProcurementText()" style="padding: 10px 22px; font-size: 14.5px;">
+                    📋 Скопіювати для Viber / Telegram
+                </button>
+            </div>
+        </div>
+    </div>
+    
 </body>
 </html>
