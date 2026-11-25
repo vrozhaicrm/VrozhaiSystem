@@ -2838,7 +2838,99 @@ function selectLatestSupplyBatch(force = false) {
             updateUI();
         }
 
-        // 1. ВІДКРИТТЯ ТА ФОРМУВАННЯ СПИСКУ ЗАКУПКИ
+        // ================= РОЗУМНИЙ АНАЛІТИЧНИЙ ПОМІЧНИК ЗАКУПНИКА (10 ДНІВ) =================
+
+        // 1. АНАЛІЗ ПРОДАЖІВ ТА СПИСАНЬ ЗА ОСТАННІ 10 ДНІВ
+        function getSmartProcurementAnalytics() {
+            let activeStoreId = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
+            
+            // Визначаємо дату рівно 10 днів тому
+            let now = new Date();
+            let tenDaysAgo = new Date();
+            tenDaysAgo.setDate(now.getDate() - 10);
+            let tenDaysAgoYMD = `${tenDaysAgo.getFullYear()}-${String(tenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(tenDaysAgo.getDate()).padStart(2, '0')}`;
+
+            let stats = {}; // { "помідор": { sold10d: 50, waste10d: 5 } }
+
+            // 1. Збираємо продажі за останні 10 днів
+            history.forEach(h => {
+                if (activeStoreId !== 'all' && (h.store || 'store-1') !== activeStoreId) return;
+                let p = parseDateHelper(h.date);
+                if (p && p.yyyy_mm_dd >= tenDaysAgoYMD) {
+                    let it = String(h.item || "").trim().toLowerCase();
+                    if (!stats[it]) stats[it] = { sold10d: 0, waste10d: 0 };
+                    stats[it].sold10d += parseFloat(h.qty) || 0;
+                }
+            });
+
+            // 2. Збираємо списання (гниль/брак) за останні 10 днів
+            writeOffs.forEach(wo => {
+                if (activeStoreId !== 'all' && (wo.store || 'store-1') !== activeStoreId) return;
+                let p = parseDateHelper(wo.date);
+                if (p && p.yyyy_mm_dd >= tenDaysAgoYMD) {
+                    let it = String(wo.item || "").trim().toLowerCase();
+                    if (!stats[it]) stats[it] = { sold10d: 0, waste10d: 0 };
+                    stats[it].waste10d += parseFloat(wo.qty) || 0;
+                }
+            });
+
+            let urgentList = [];   // 🔥 Терміново купити
+            let cautionList = [];  // ⚠️ Обережно (високий брак)
+            let doNotBuyList = []; // 💤 Не купувати (мало, але попит низький)
+
+            for (let it in inventory) {
+                let data = inventory[it];
+                let curKg = parseFloat(data.kg) || 0;
+                let critKg = (data.critKg !== undefined && data.critKg !== null) ? parseFloat(data.critKg) : 5;
+
+                let itStats = stats[it] || { sold10d: 0, waste10d: 0 };
+                let dailyVelocity = itStats.sold10d / 10; // Середній продаж на день за 10 днів
+
+                // Відсоток псування
+                let totalTurnover = itStats.sold10d + itStats.waste10d;
+                let wasteRate = totalTurnover > 0 ? ((itStats.waste10d / totalTurnover) * 100) : 0;
+
+                // На скільки днів вистачить поточного залишку
+                let daysLeft = dailyVelocity > 0 ? (curKg / dailyVelocity) : (curKg > 0 ? 999 : 0);
+
+                let itemObj = {
+                    name: it.toUpperCase(),
+                    current: curKg,
+                    crit: critKg,
+                    velocity: dailyVelocity,
+                    wasteRate: wasteRate,
+                    daysLeft: daysLeft
+                };
+
+                // КАТЕГОРІЯ 1: Товар є малорухомим або його вистачає надовго
+                if (curKg <= critKg && (daysLeft >= 3 || dailyVelocity < 0.25)) {
+                    doNotBuyList.push(itemObj);
+                    continue;
+                }
+
+                // КАТЕГОРІЯ 2: Потрібно купувати (запасу залишилось менше ніж на 1.5 дні або нуль)
+                if (daysLeft <= 1.5 || curKg <= 0) {
+                    // Якщо товар має схильність швидко псуватися (брак > 15%)
+                    if (wasteRate > 15) {
+                        itemObj.toBuy = Math.max(3, Math.ceil(dailyVelocity * 1)); // Тільки на 1 день!
+                        cautionList.push(itemObj);
+                    } else {
+                        // Звичайний хіт продажу: беремо із запасом на 2 дні
+                        itemObj.toBuy = Math.max(5, Math.ceil(dailyVelocity * 2));
+                        urgentList.push(itemObj);
+                    }
+                }
+            }
+
+            // Сортуємо: найбільш критичні (де найменше днів запасу) — вгору списку
+            urgentList.sort((a, b) => a.daysLeft - b.daysLeft);
+            cautionList.sort((a, b) => a.daysLeft - b.daysLeft);
+            doNotBuyList.sort((a, b) => a.velocity - b.velocity);
+
+            return { urgentList, cautionList, doNotBuyList };
+        }
+
+        // 2. ВІДКРИТТЯ МОДАЛЬНОГО ВІКНА ЗІ СФОРМОВАНИМ РОЗУМНИМ ЗВІТОМ
         function openProcurementModal() {
             let activeStoreId = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
             let storeObj = stores.find(s => s.id === activeStoreId);
@@ -2847,50 +2939,70 @@ function selectLatestSupplyBatch(force = false) {
             let now = new Date();
             let dateStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
 
-            let lowStockItems = [];
+            let { urgentList, cautionList, doNotBuyList } = getSmartProcurementAnalytics();
 
-            // Шукаємо товари, у яких залишок менший або дорівнює критичній нормі
-            for (let it in inventory) {
-                let data = inventory[it];
-                let curKg = parseFloat(data.kg) || 0;
-                let critKg = (data.critKg !== undefined && data.critKg !== null) ? parseFloat(data.critKg) : 5;
-
-                // Якщо залишок критичний
-                if (curKg <= critKg) {
-                    // Рекомендований закуп: поповнення до 3-кратного розміру критичного запасу
-                    let targetStock = critKg * 3;
-                    let toBuy = Math.max(5, Math.ceil(targetStock - curKg));
-
-                    lowStockItems.push({
-                        name: it.toUpperCase(),
-                        current: curKg,
-                        crit: critKg,
-                        toBuy: toBuy
-                    });
-                }
-            }
-
-            // Сортуємо: найбільш дефіцитні товари (де менше всього лишилося) — перші в списку
-            lowStockItems.sort((a, b) => a.current - b.current);
-
-            let msg = `🍏 ЗАМОВЛЕННЯ НА ЗАКУПКУ — ${dateStr}\n`;
+            let msg = `🍏 РОЗУМНА ЗАЯВКА НА ЗАКУПКУ — ${dateStr}\n`;
             msg += `🏪 Філія: ${storeName}\n`;
+            msg += `📊 Аналіз продажів та браку за останні 10 днів\n`;
             msg += `━━━━━━━━━━━━━━━━━━━━\n`;
 
-            if (lowStockItems.length === 0) {
-                msg += `🎉 Всі товари в достатній кількості!\nЖодна позиція не перетнула критичну межу.`;
+            let totalToBuyCount = urgentList.length + cautionList.length;
+
+            if (totalToBuyCount === 0 && doNotBuyList.length === 0) {
+                msg += `🎉 Склад укомплектований ідеально!\nУсі товари є в достатній кількості.`;
             } else {
-                lowStockItems.forEach(item => {
-                    msg += `• ${item.name}: залишок ${item.current} кг (крит: ${item.crit} кг) ➔ докупити: ~${item.toBuy} кг\n`;
-                });
+                // БЛОК 1: ТЕРМІНОВО
+                if (urgentList.length > 0) {
+                    msg += `🔥 ТЕРМІНОВО (запас < 1.5 дні, закупка на 2 дні):\n`;
+                    urgentList.forEach(item => {
+                        let vStr = item.velocity > 0 ? `${item.velocity.toFixed(1)} кг/дн` : "новий";
+                        msg += `• ${item.name}: залишок ${item.current} кг (хід: ${vStr}) ➔ купити: ~${item.toBuy} кг\n`;
+                    });
+                    msg += `\n`;
+                }
+
+                // БЛОК 2: ОБЕРЕЖНО (ВИСОКИЙ БРАК)
+                if (cautionList.length > 0) {
+                    msg += `⚠️ ОБЕРЕЖНО (брак > 15%, брати суворо на 1 день!):\n`;
+                    cautionList.forEach(item => {
+                        msg += `• ${item.name}: залишок ${item.current} кг (брак: ${item.wasteRate.toFixed(0)}%) ➔ купити: ~${item.toBuy} кг\n`;
+                    });
+                    msg += `\n`;
+                }
+
+                // БЛОК 3: НЕ КУПУВАТИ (ЕКОНОМІЯ ГРОШЕЙ)
+                if (doNotBuyList.length > 0) {
+                    msg += `💤 НЕ КУПУВАТИ (низький попит / вистачить надовго):\n`;
+                    doNotBuyList.forEach(item => {
+                        let dLeft = item.daysLeft < 999 ? `вистачить ще на ~${Math.round(item.daysLeft)} дн.` : `продажі стоять`;
+                        msg += `• ${item.name}: залишок ${item.current} кг — ${dLeft}\n`;
+                    });
+                    msg += `\n`;
+                }
+
                 msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-                msg += `Всього позицій до закупки: ${lowStockItems.length} шт.`;
+                msg += `📦 Всього позицій до закупівлі: ${totalToBuyCount} шт.`;
             }
 
             document.getElementById('procurement-text-area').value = msg;
             let modal = document.getElementById('procurement-modal');
             if (modal) modal.style.display = 'flex';
         }
+
+        // 3. РОЗУМНИЙ БЕЙДЖ (РАХУЄ ТІЛЬКИ РЕАЛЬНО ПОТРІБНІ ТОВАРИ)
+        function updateLowStockBadge() {
+            let badge = document.getElementById('low-stock-count-badge');
+            if (!badge) return;
+
+            let { urgentList, cautionList } = getSmartProcurementAnalytics();
+            let realNeededCount = urgentList.length + cautionList.length;
+
+            badge.innerText = realNeededCount;
+            badge.style.background = realNeededCount > 0 ? "#ffebee" : "#ffffff";
+            badge.style.color = realNeededCount > 0 ? "#c62828" : "#006442";
+        }
+
+        
 
         // 2. ЗАКРИТТЯ ВІКНА
         function closeProcurementModal() {
@@ -2917,24 +3029,6 @@ function selectLatestSupplyBatch(force = false) {
                 document.execCommand('copy');
                 alert("✅ Скопійовано в буфер обміну!");
             }
-        }
-
-        // 4. ОНОВЛЕННЯ ЦИФРИ НА БЕЙДЖІ (СКІЛЬКИ ТОВАРІВ ЗАКІНЧУЄТЬСЯ)
-        function updateLowStockBadge() {
-            let badge = document.getElementById('low-stock-count-badge');
-            if (!badge) return;
-
-            let count = 0;
-            for (let it in inventory) {
-                let data = inventory[it];
-                let curKg = parseFloat(data.kg) || 0;
-                let critKg = (data.critKg !== undefined && data.critKg !== null) ? parseFloat(data.critKg) : 5;
-                if (curKg <= critKg) count++;
-            }
-
-            badge.innerText = count;
-            badge.style.background = count > 0 ? "#ffebee" : "#ffffff";
-            badge.style.color = count > 0 ? "#c62828" : "#006442";
         }
 
         // ПІДТЯГУВАННЯ СОБІВАРТОСТІ ПРИ ВИБОРІ ТОВАРУ ДЛЯ СПИСАННЯ
