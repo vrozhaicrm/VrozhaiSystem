@@ -2838,21 +2838,88 @@ function selectLatestSupplyBatch(force = false) {
             updateUI();
         }
 
-        // ================= РОЗУМНИЙ АНАЛІТИЧНИЙ ПОМІЧНИК ЗАКУПНИКА (10 ДНІВ) =================
+        // ================= ЕНЦИКЛОПЕДІЯ СЕЗОННОСТІ ТОВАРІВ (УКРАЇНА) =================
+        // Місяці: 1-Січень, 2-Лютий, 3-Березень ... 12-Грудень
+        const SEASON_CALENDAR = {
+            // 🍓 ЯГОДИ
+            "полуниц":  { peak: [5, 6, 7], warning: [8, 9], off: [11, 12, 1, 2, 3, 4] },
+            "черешн":   { peak: [6, 7], off: [9, 10, 11, 12, 1, 2, 3, 4, 5] },
+            "вишн":     { peak: [6, 7], off: [8, 9, 10, 11, 12, 1, 2, 3, 4, 5] },
+            "малин":    { peak: [6, 7, 8], warning: [9, 10], off: [11, 12, 1, 2, 3, 4, 5] },
+            "лохин":    { peak: [6, 7, 8], warning: [9], off: [11, 12, 1, 2, 3, 4] },
+            "чорниц":   { peak: [6, 7, 8], off: [9, 10, 11, 12, 1, 2, 3, 4, 5] },
+            "ожин":     { peak: [7, 8, 9], off: [11, 12, 1, 2, 3, 4, 5] },
+            "смородин": { peak: [6, 7, 8], off: [9, 10, 11, 12, 1, 2, 3, 4, 5] },
+            "порічк":   { peak: [6, 7], off: [8, 9, 10, 11, 12, 1, 2, 3, 4, 5] },
+            "аґрус":    { peak: [6, 7], off: [8, 9, 10, 11, 12, 1, 2, 3, 4, 5] },
 
-        // 1. АНАЛІЗ ПРОДАЖІВ ТА СПИСАНЬ ЗА ОСТАННІ 10 ДНІВ
+            // 🍑 КІСТОЧКОВІ ТА ЛІТНІ ФРУКТИ
+            "персик":   { peak: [7, 8], warning: [9], off: [11, 12, 1, 2, 3, 4, 5] },
+            "нектарин": { peak: [7, 8], warning: [9], off: [11, 12, 1, 2, 3, 4, 5] },
+            "абрикос":  { peak: [6, 7], warning: [8], off: [9, 10, 11, 12, 1, 2, 3, 4, 5] },
+            "слив":     { peak: [8, 9], warning: [10], off: [12, 1, 2, 3, 4, 5, 6] },
+            "алич":     { peak: [7, 8], off: [9, 10, 11, 12, 1, 2, 3, 4, 5, 6] },
+            "інжир":    { peak: [8, 9, 10], off: [12, 1, 2, 3, 4, 5, 6] },
+
+            // 🍉 БАШТАННІ ТА КУКУРУДЗА
+            "кавун":    { peak: [7, 8, 9], warning: [10], off: [11, 12, 1, 2, 3, 4, 5, 6] },
+            "дин":      { peak: [7, 8, 9], warning: [10], off: [11, 12, 1, 2, 3, 4, 5, 6] },
+            "кукурудз": { peak: [7, 8, 9], off: [11, 12, 1, 2, 3, 4, 5, 6] },
+
+            // 🍊 ЦИТРУСОВІ ТА ЗИМОВІ ФРУКТИ (Осінь / Зима)
+            "мандарин": { peak: [11, 12, 1, 2], warning: [3], off: [5, 6, 7, 8] },
+            "хурм":     { peak: [10, 11, 12, 1], warning: [2], off: [4, 5, 6, 7, 8, 9] },
+            "шарон":    { peak: [10, 11, 12, 1], warning: [2], off: [4, 5, 6, 7, 8, 9] },
+            "корольок": { peak: [10, 11, 12, 1], off: [3, 4, 5, 6, 7, 8, 9] },
+            "гранат":   { peak: [10, 11, 12, 1, 2], off: [4, 5, 6, 7, 8] },
+            "помело":   { peak: [11, 12, 1, 2], off: [5, 6, 7, 8] },
+            "апельсин": { peak: [11, 12, 1, 2, 3], warning: [4], off: [6, 7, 8] },
+            "грейпфрут":{ peak: [11, 12, 1, 2, 3], off: [6, 7, 8] },
+            "світі":    { peak: [11, 12, 1, 2], off: [4, 5, 6, 7, 8, 9] },
+
+            // 🍇 ОСІННІ ТА СПЕЦІАЛЬНІ
+            "виноград": { peak: [8, 9, 10], warning: [11], off: [1, 2, 3, 4, 5] },
+            "гарбуз":   { peak: [9, 10, 11, 12], warning: [1], off: [3, 4, 5, 6, 7] },
+            "айва":     { peak: [10, 11, 12], off: [2, 3, 4, 5, 6, 7, 8] },
+
+            // 🥗 СЕЗОННІ ОВОЧІ ТА ЗЕЛЕНЬ
+            "редис":    { peak: [4, 5], warning: [6] },
+            "спарж":    { peak: [4, 5, 6], off: [8, 9, 10, 11, 12, 1, 2, 3] },
+            "черемш":   { peak: [3, 4], off: [5, 6, 7, 8, 9, 10, 11, 12, 1, 2] },
+            "щавел":    { peak: [4, 5, 6], off: [10, 11, 12, 1, 2] },
+            "молод":    { peak: [5, 6, 7], off: [11, 12, 1, 2] }, // молода картопля/капуста
+            "баклажан": { peak: [7, 8, 9], warning: [10], off: [12, 1, 2, 3, 4] },
+            "кабачок":  { peak: [6, 7, 8, 9], off: [12, 1, 2, 3] }
+        };
+
+        // ФУНКЦІЯ ВИЗНАЧЕННЯ СЕЗОННОГО СТАТУСУ ТОВАРУ ЗА МІСЯЦЕМ
+        function getProductSeasonStatus(itemName, currentMonth) {
+            let lower = itemName.toLowerCase();
+            for (let root in SEASON_CALENDAR) {
+                if (lower.includes(root)) {
+                    let rule = SEASON_CALENDAR[root];
+                    if (rule.off && rule.off.includes(currentMonth)) return "OFF_SEASON"; // ❄️ Не сезон
+                    if (rule.warning && rule.warning.includes(currentMonth)) return "SEASON_ENDING"; // 🛑 Кінець сезону
+                    if (rule.peak && rule.peak.includes(currentMonth)) return "PEAK_SEASON"; // 🚀 Пік сезону
+                }
+            }
+            return "EVERGREEN"; // 🥔 Базовий всесезонний товар
+        }
+
+        // ================= ОНОВЛЕНИЙ РОЗУМНИЙ АНАЛІЗ З СЕЗОННІСТЮ (10 ДНІВ) =================
         function getSmartProcurementAnalytics() {
             let activeStoreId = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
             
-            // Визначаємо дату рівно 10 днів тому
             let now = new Date();
+            let currentMonth = now.getMonth() + 1; // 1-12
+
             let tenDaysAgo = new Date();
             tenDaysAgo.setDate(now.getDate() - 10);
             let tenDaysAgoYMD = `${tenDaysAgo.getFullYear()}-${String(tenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(tenDaysAgo.getDate()).padStart(2, '0')}`;
 
-            let stats = {}; // { "помідор": { sold10d: 50, waste10d: 5 } }
+            let stats = {};
 
-            // 1. Збираємо продажі за останні 10 днів
+            // 1. Продажі за 10 днів
             history.forEach(h => {
                 if (activeStoreId !== 'all' && (h.store || 'store-1') !== activeStoreId) return;
                 let p = parseDateHelper(h.date);
@@ -2863,7 +2930,7 @@ function selectLatestSupplyBatch(force = false) {
                 }
             });
 
-            // 2. Збираємо списання (гниль/брак) за останні 10 днів
+            // 2. Списання за 10 днів
             writeOffs.forEach(wo => {
                 if (activeStoreId !== 'all' && (wo.store || 'store-1') !== activeStoreId) return;
                 let p = parseDateHelper(wo.date);
@@ -2874,9 +2941,11 @@ function selectLatestSupplyBatch(force = false) {
                 }
             });
 
-            let urgentList = [];   // 🔥 Терміново купити
-            let cautionList = [];  // ⚠️ Обережно (високий брак)
-            let doNotBuyList = []; // 💤 Не купувати (мало, але попит низький)
+            let urgentList = [];       // 🔥 Терміново купити
+            let cautionList = [];      // ⚠️ Високий брак
+            let seasonEndingList = []; // 🛑 Сезон згасає
+            let offSeasonList = [];    // ❄️ Не в сезоні (блокувати закуп)
+            let doNotBuyList = [];     // 💤 Низький попит
 
             for (let it in inventory) {
                 let data = inventory[it];
@@ -2884,14 +2953,14 @@ function selectLatestSupplyBatch(force = false) {
                 let critKg = (data.critKg !== undefined && data.critKg !== null) ? parseFloat(data.critKg) : 5;
 
                 let itStats = stats[it] || { sold10d: 0, waste10d: 0 };
-                let dailyVelocity = itStats.sold10d / 10; // Середній продаж на день за 10 днів
+                let dailyVelocity = itStats.sold10d / 10;
 
-                // Відсоток псування
                 let totalTurnover = itStats.sold10d + itStats.waste10d;
                 let wasteRate = totalTurnover > 0 ? ((itStats.waste10d / totalTurnover) * 100) : 0;
-
-                // На скільки днів вистачить поточного залишку
                 let daysLeft = dailyVelocity > 0 ? (curKg / dailyVelocity) : (curKg > 0 ? 999 : 0);
+
+                // Отримуємо сезонний статус товару для поточного місяця!
+                let seasonStatus = getProductSeasonStatus(it, currentMonth);
 
                 let itemObj = {
                     name: it.toUpperCase(),
@@ -2899,38 +2968,55 @@ function selectLatestSupplyBatch(force = false) {
                     crit: critKg,
                     velocity: dailyVelocity,
                     wasteRate: wasteRate,
-                    daysLeft: daysLeft
+                    daysLeft: daysLeft,
+                    seasonStatus: seasonStatus
                 };
 
-                // КАТЕГОРІЯ 1: Товар є малорухомим або його вистачає надовго
+                // СЦЕНАРІЙ 1: ТОВАР НЕ В СЕЗОНІ (напр. полуниця чи кавун у грудні)
+                if (seasonStatus === "OFF_SEASON") {
+                    if (curKg <= critKg) {
+                        offSeasonList.push(itemObj); // Блокуємо закупівлю
+                    }
+                    continue;
+                }
+
+                // СЦЕНАРІЙ 2: СЕЗОН ЗГАСАЄ (напр. кавун у жовтні)
+                if (seasonStatus === "SEASON_ENDING" && (daysLeft <= 1.5 || curKg <= 0)) {
+                    itemObj.toBuy = Math.max(2, Math.ceil(dailyVelocity * 1)); // Строго на 1 день
+                    seasonEndingList.push(itemObj);
+                    continue;
+                }
+
+                // СЦЕНАРІЙ 3: МАЛОРУХОМИЙ ТОВАР
                 if (curKg <= critKg && (daysLeft >= 3 || dailyVelocity < 0.25)) {
                     doNotBuyList.push(itemObj);
                     continue;
                 }
 
-                // КАТЕГОРІЯ 2: Потрібно купувати (запасу залишилось менше ніж на 1.5 дні або нуль)
+                // СЦЕНАРІЙ 4: ПОТРІБНО КУПУВАТИ
                 if (daysLeft <= 1.5 || curKg <= 0) {
-                    // Якщо товар має схильність швидко псуватися (брак > 15%)
                     if (wasteRate > 15) {
-                        itemObj.toBuy = Math.max(3, Math.ceil(dailyVelocity * 1)); // Тільки на 1 день!
+                        itemObj.toBuy = Math.max(3, Math.ceil(dailyVelocity * 1));
                         cautionList.push(itemObj);
                     } else {
-                        // Звичайний хіт продажу: беремо із запасом на 2 дні
-                        itemObj.toBuy = Math.max(5, Math.ceil(dailyVelocity * 2));
+                        // Якщо товар зараз на піку сезону — беремо із запасом на 3 дні!
+                        let daysToCover = (seasonStatus === "PEAK_SEASON") ? 3 : 2;
+                        itemObj.toBuy = Math.max(5, Math.ceil(dailyVelocity * daysToCover));
+                        itemObj.isPeak = (seasonStatus === "PEAK_SEASON");
                         urgentList.push(itemObj);
                     }
                 }
             }
 
-            // Сортуємо: найбільш критичні (де найменше днів запасу) — вгору списку
             urgentList.sort((a, b) => a.daysLeft - b.daysLeft);
             cautionList.sort((a, b) => a.daysLeft - b.daysLeft);
+            seasonEndingList.sort((a, b) => a.daysLeft - b.daysLeft);
             doNotBuyList.sort((a, b) => a.velocity - b.velocity);
 
-            return { urgentList, cautionList, doNotBuyList };
+            return { urgentList, cautionList, seasonEndingList, offSeasonList, doNotBuyList };
         }
 
-        // 2. ВІДКРИТТЯ МОДАЛЬНОГО ВІКНА ЗІ СФОРМОВАНИМ РОЗУМНИМ ЗВІТОМ
+        // ВІДКРИТТЯ МОДАЛЬНОГО ВІКНА З УРАХУВАННЯМ СЕЗОННОСТІ
         function openProcurementModal() {
             let activeStoreId = (currentStoreId && currentStoreId !== 'all') ? currentStoreId : 'all';
             let storeObj = stores.find(s => s.id === activeStoreId);
@@ -2939,29 +3025,39 @@ function selectLatestSupplyBatch(force = false) {
             let now = new Date();
             let dateStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
 
-            let { urgentList, cautionList, doNotBuyList } = getSmartProcurementAnalytics();
+            let { urgentList, cautionList, seasonEndingList, offSeasonList, doNotBuyList } = getSmartProcurementAnalytics();
 
             let msg = `🍏 РОЗУМНА ЗАЯВКА НА ЗАКУПКУ — ${dateStr}\n`;
             msg += `🏪 Філія: ${storeName}\n`;
-            msg += `📊 Аналіз продажів та браку за останні 10 днів\n`;
+            msg += `🌿 Враховано історію за 10 днів та сезонний календар\n`;
             msg += `━━━━━━━━━━━━━━━━━━━━\n`;
 
-            let totalToBuyCount = urgentList.length + cautionList.length;
+            let totalToBuyCount = urgentList.length + cautionList.length + seasonEndingList.length;
 
-            if (totalToBuyCount === 0 && doNotBuyList.length === 0) {
+            if (totalToBuyCount === 0 && doNotBuyList.length === 0 && offSeasonList.length === 0) {
                 msg += `🎉 Склад укомплектований ідеально!\nУсі товари є в достатній кількості.`;
             } else {
-                // БЛОК 1: ТЕРМІНОВО
+                // 1. ТЕРМІНОВО
                 if (urgentList.length > 0) {
-                    msg += `🔥 ТЕРМІНОВО (запас < 1.5 дні, закупка на 2 дні):\n`;
+                    msg += `🔥 ТЕРМІНОВО (ходові позиції):\n`;
                     urgentList.forEach(item => {
                         let vStr = item.velocity > 0 ? `${item.velocity.toFixed(1)} кг/дн` : "новий";
-                        msg += `• ${item.name}: залишок ${item.current} кг (хід: ${vStr}) ➔ купити: ~${item.toBuy} кг\n`;
+                        let peakBadge = item.isPeak ? " 🚀 [ПІК СЕЗОНУ]" : "";
+                        msg += `• ${item.name}: залишок ${item.current} кг (хід: ${vStr})${peakBadge} ➔ купити: ~${item.toBuy} кг\n`;
                     });
                     msg += `\n`;
                 }
 
-                // БЛОК 2: ОБЕРЕЖНО (ВИСОКИЙ БРАК)
+                // 2. СЕЗОН ЗГАСАЄ
+                if (seasonEndingList.length > 0) {
+                    msg += `🛑 СЕЗОН ЗГАСАЄ (брати мінімум, ризик залишків!):\n`;
+                    seasonEndingList.forEach(item => {
+                        msg += `• ${item.name}: залишок ${item.current} кг ➔ взяти максимум: ~${item.toBuy} кг\n`;
+                    });
+                    msg += `\n`;
+                }
+
+                // 3. ОБЕРЕЖНО (ВИСОКИЙ БРАК)
                 if (cautionList.length > 0) {
                     msg += `⚠️ ОБЕРЕЖНО (брак > 15%, брати суворо на 1 день!):\n`;
                     cautionList.forEach(item => {
@@ -2970,9 +3066,18 @@ function selectLatestSupplyBatch(force = false) {
                     msg += `\n`;
                 }
 
-                // БЛОК 3: НЕ КУПУВАТИ (ЕКОНОМІЯ ГРОШЕЙ)
+                // 4. НЕ В СЕЗОНІ (ОФФ-СЕЗОН)
+                if (offSeasonList.length > 0) {
+                    msg += `❄️ НЕ В СЕЗОНІ (закупку заблоковано для економії):\n`;
+                    offSeasonList.forEach(item => {
+                        msg += `• ${item.name} — зараз не сезон! Брати лише під замовлення.\n`;
+                    });
+                    msg += `\n`;
+                }
+
+                // 5. НЕ КУПУВАТИ (НИЗЬКИЙ ПОПИТ)
                 if (doNotBuyList.length > 0) {
-                    msg += `💤 НЕ КУПУВАТИ (низький попит / вистачить надовго):\n`;
+                    msg += `💤 НЕ КУПУВАТИ (попит слабкий / вистачить надовго):\n`;
                     doNotBuyList.forEach(item => {
                         let dLeft = item.daysLeft < 999 ? `вистачить ще на ~${Math.round(item.daysLeft)} дн.` : `продажі стоять`;
                         msg += `• ${item.name}: залишок ${item.current} кг — ${dLeft}\n`;
@@ -2989,13 +3094,13 @@ function selectLatestSupplyBatch(force = false) {
             if (modal) modal.style.display = 'flex';
         }
 
-        // 3. РОЗУМНИЙ БЕЙДЖ (РАХУЄ ТІЛЬКИ РЕАЛЬНО ПОТРІБНІ ТОВАРИ)
+        // РОЗУМНИЙ БЕЙДЖ (РАХУЄ ТІЛЬКИ ТІ ТОВАРИ, ЯКІ РЕАЛЬНО ПОТРІБНО КУПУВАТИ)
         function updateLowStockBadge() {
             let badge = document.getElementById('low-stock-count-badge');
             if (!badge) return;
 
-            let { urgentList, cautionList } = getSmartProcurementAnalytics();
-            let realNeededCount = urgentList.length + cautionList.length;
+            let { urgentList, cautionList, seasonEndingList } = getSmartProcurementAnalytics();
+            let realNeededCount = urgentList.length + cautionList.length + seasonEndingList.length;
 
             badge.innerText = realNeededCount;
             badge.style.background = realNeededCount > 0 ? "#ffebee" : "#ffffff";
